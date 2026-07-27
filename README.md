@@ -2,6 +2,8 @@
 
 A personal, cloud-synced note-taking app: create and organize notes in folders, lock individual notes with a password, use voice-to-text while writing, skin your notes and your whole app with different looks, drag notes between folders, and ask an AI assistant to answer questions from your notes — or write directly into them.
 
+> **Sync check:** if you can see this line after pulling in Replit, GitHub → Replit sync is working correctly. (Added as a one-time verification after fixing the repo-mismatch issue.)
+
 ## Features
 
 - **Notes & folders** — create, edit, and organize notes into folders; drag and drop a note from the sidebar onto any folder to move it there
