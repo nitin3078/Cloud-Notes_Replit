@@ -15,6 +15,9 @@ A personal, cloud-synced note-taking app: create and organize notes in folders, 
 - **Note previews** — hover any note in the sidebar for a scrollable preview of its content
 - **Ask your notes** — a chat panel (global or scoped to a single open note) that answers questions using only your own notes as context, powered by the Gemini API free tier
 - **AI writing** — ask the assistant to draft, summarize, or rewrite something for a note, review its answer, then click "Insert into note" to add it — every AI-written addition is signed with a timestamp so it's always clear what the AI wrote versus what you wrote
+- **General-knowledge fallback** — if the AI can't answer from your notes, it offers to answer from general knowledge instead, on request
+- **Email/password accounts** — sign up and log in with email + password, alongside the existing Replit login
+- **Planner** — a sparse, date-based task list: only dates you've actually added something to ever show up, with an "Up Next" view surfacing what's due today or coming up soonest
 
 ## Stack
 
@@ -82,6 +85,11 @@ Roughly in the order each piece was built:
 9. **AI writing into notes** — the assistant can now draft content on request; the person reviews it in the chat panel and explicitly clicks "Insert into note" before anything is written — nothing is added automatically. Inserted text is signed with a timestamp.
 10. **Cross-folder drag-and-drop** — notes in the sidebar can be dragged directly onto a folder (or "All Notes") to move them, in addition to the existing right-click "Move to..." menu.
 11. **Note preview tooltips** — hovering a note in the sidebar shows a scrollable preview of its full content, plus a clearer hover highlight.
+12. **Drag-and-drop fix** — the drag handle was originally only a tiny hover-only icon; the whole note card is draggable now.
+13. **Full-bleed note styles** — PDF/Notebook/Chalkboard/Kraft/Terminal now fill the entire note area instead of sitting in a centered box.
+14. **Email/password accounts** — added alongside the existing Replit login, using the same session system.
+15. **AI general-knowledge fallback** — when the assistant can't answer from your notes, it offers a one-click "search generally instead?" option.
+16. **Planner** — a new sparse, date-based task list with an "Up Next" view.
 
 ## Built by
 
