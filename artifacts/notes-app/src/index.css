@@ -165,6 +165,217 @@
   /* Folio doesn't use dark mode, falling back to same values */
 }
 
+/* ------------------------------------------------------------------ */
+/* Theme palettes — applied via [data-theme] on <html>, set by         */
+/* src/lib/ThemeContext.tsx. "parchment" (the default) needs no block  */
+/* here since it's what :root already defines above.                   */
+/* ------------------------------------------------------------------ */
+
+[data-theme='midnight'] {
+  --background: 20 14% 8%;
+  --foreground: 40 20% 92%;
+  --border: 20 10% 22%;
+  --card: 20 14% 11%;
+  --card-foreground: 40 20% 92%;
+  --card-border: 20 10% 22%;
+
+  --sidebar: 20 14% 10%;
+  --sidebar-foreground: 40 20% 90%;
+  --sidebar-border: 20 10% 22%;
+  --sidebar-primary: 32 70% 60%;
+  --sidebar-primary-foreground: 20 14% 10%;
+  --sidebar-accent: 20 10% 18%;
+  --sidebar-accent-foreground: 40 20% 90%;
+  --sidebar-ring: 32 70% 60%;
+
+  --popover: 20 14% 11%;
+  --popover-foreground: 40 20% 92%;
+  --popover-border: 20 10% 22%;
+
+  --primary: 32 70% 60%;
+  --primary-foreground: 20 14% 8%;
+  --secondary: 20 10% 18%;
+  --secondary-foreground: 40 20% 90%;
+  --muted: 20 10% 16%;
+  --muted-foreground: 30 10% 65%;
+  --accent: 20 10% 20%;
+  --accent-foreground: 40 20% 90%;
+  --destructive: 0 60% 55%;
+  --destructive-foreground: 40 20% 95%;
+  --input: 20 10% 22%;
+  --ring: 32 70% 60%;
+
+  --chart-1: 32 70% 60%;
+  --chart-2: 20 10% 22%;
+  --chart-3: 40 20% 92%;
+  --chart-4: 20 10% 18%;
+  --chart-5: 20 14% 8%;
+}
+
+[data-theme='ocean'] {
+  --background: 195 45% 97%;
+  --foreground: 200 45% 14%;
+  --border: 195 30% 82%;
+  --card: 195 45% 99%;
+  --card-foreground: 200 45% 14%;
+  --card-border: 195 30% 82%;
+
+  --sidebar: 195 35% 93%;
+  --sidebar-foreground: 200 45% 14%;
+  --sidebar-border: 195 30% 82%;
+  --sidebar-primary: 190 65% 32%;
+  --sidebar-primary-foreground: 195 45% 97%;
+  --sidebar-accent: 195 30% 87%;
+  --sidebar-accent-foreground: 200 45% 14%;
+  --sidebar-ring: 190 65% 32%;
+
+  --popover: 195 45% 99%;
+  --popover-foreground: 200 45% 14%;
+  --popover-border: 195 30% 82%;
+
+  --primary: 190 65% 32%;
+  --primary-foreground: 195 45% 97%;
+  --secondary: 195 35% 93%;
+  --secondary-foreground: 200 45% 14%;
+  --muted: 195 35% 93%;
+  --muted-foreground: 200 20% 42%;
+  --accent: 195 30% 87%;
+  --accent-foreground: 200 45% 14%;
+  --destructive: 0 65% 51%;
+  --destructive-foreground: 195 45% 97%;
+  --input: 195 30% 82%;
+  --ring: 190 65% 32%;
+
+  --chart-1: 190 65% 32%;
+  --chart-2: 195 30% 82%;
+  --chart-3: 200 45% 14%;
+  --chart-4: 195 35% 93%;
+  --chart-5: 195 45% 97%;
+}
+
+[data-theme='forest'] {
+  --background: 90 25% 96%;
+  --foreground: 110 30% 14%;
+  --border: 95 20% 78%;
+  --card: 90 30% 98%;
+  --card-foreground: 110 30% 14%;
+  --card-border: 95 20% 78%;
+
+  --sidebar: 95 22% 91%;
+  --sidebar-foreground: 110 30% 14%;
+  --sidebar-border: 95 20% 78%;
+  --sidebar-primary: 120 25% 32%;
+  --sidebar-primary-foreground: 90 25% 96%;
+  --sidebar-accent: 95 20% 85%;
+  --sidebar-accent-foreground: 110 30% 14%;
+  --sidebar-ring: 120 25% 32%;
+
+  --popover: 90 30% 98%;
+  --popover-foreground: 110 30% 14%;
+  --popover-border: 95 20% 78%;
+
+  --primary: 120 25% 32%;
+  --primary-foreground: 90 25% 96%;
+  --secondary: 95 22% 91%;
+  --secondary-foreground: 110 30% 14%;
+  --muted: 95 22% 91%;
+  --muted-foreground: 110 15% 40%;
+  --accent: 95 20% 85%;
+  --accent-foreground: 110 30% 14%;
+  --destructive: 0 65% 51%;
+  --destructive-foreground: 90 25% 96%;
+  --input: 95 20% 78%;
+  --ring: 120 25% 32%;
+
+  --chart-1: 120 25% 32%;
+  --chart-2: 95 20% 78%;
+  --chart-3: 110 30% 14%;
+  --chart-4: 95 22% 91%;
+  --chart-5: 90 25% 96%;
+}
+
+[data-theme='rose'] {
+  --background: 345 40% 97%;
+  --foreground: 340 35% 16%;
+  --border: 345 30% 84%;
+  --card: 345 45% 99%;
+  --card-foreground: 340 35% 16%;
+  --card-border: 345 30% 84%;
+
+  --sidebar: 345 35% 93%;
+  --sidebar-foreground: 340 35% 16%;
+  --sidebar-border: 345 30% 84%;
+  --sidebar-primary: 340 42% 52%;
+  --sidebar-primary-foreground: 345 40% 97%;
+  --sidebar-accent: 345 30% 88%;
+  --sidebar-accent-foreground: 340 35% 16%;
+  --sidebar-ring: 340 42% 52%;
+
+  --popover: 345 45% 99%;
+  --popover-foreground: 340 35% 16%;
+  --popover-border: 345 30% 84%;
+
+  --primary: 340 42% 52%;
+  --primary-foreground: 345 40% 97%;
+  --secondary: 345 35% 93%;
+  --secondary-foreground: 340 35% 16%;
+  --muted: 345 35% 93%;
+  --muted-foreground: 340 15% 45%;
+  --accent: 345 30% 88%;
+  --accent-foreground: 340 35% 16%;
+  --destructive: 0 65% 51%;
+  --destructive-foreground: 345 40% 97%;
+  --input: 345 30% 84%;
+  --ring: 340 42% 52%;
+
+  --chart-1: 340 42% 52%;
+  --chart-2: 345 30% 84%;
+  --chart-3: 340 35% 16%;
+  --chart-4: 345 35% 93%;
+  --chart-5: 345 40% 97%;
+}
+
+[data-theme='slate'] {
+  --background: 220 20% 97%;
+  --foreground: 222 30% 14%;
+  --border: 220 15% 82%;
+  --card: 220 25% 99%;
+  --card-foreground: 222 30% 14%;
+  --card-border: 220 15% 82%;
+
+  --sidebar: 220 18% 92%;
+  --sidebar-foreground: 222 30% 14%;
+  --sidebar-border: 220 15% 82%;
+  --sidebar-primary: 222 30% 38%;
+  --sidebar-primary-foreground: 220 20% 97%;
+  --sidebar-accent: 220 15% 87%;
+  --sidebar-accent-foreground: 222 30% 14%;
+  --sidebar-ring: 222 30% 38%;
+
+  --popover: 220 25% 99%;
+  --popover-foreground: 222 30% 14%;
+  --popover-border: 220 15% 82%;
+
+  --primary: 222 30% 38%;
+  --primary-foreground: 220 20% 97%;
+  --secondary: 220 18% 92%;
+  --secondary-foreground: 222 30% 14%;
+  --muted: 220 18% 92%;
+  --muted-foreground: 222 15% 42%;
+  --accent: 220 15% 87%;
+  --accent-foreground: 222 30% 14%;
+  --destructive: 0 65% 51%;
+  --destructive-foreground: 220 20% 97%;
+  --input: 220 15% 82%;
+  --ring: 222 30% 38%;
+
+  --chart-1: 222 30% 38%;
+  --chart-2: 220 15% 82%;
+  --chart-3: 222 30% 14%;
+  --chart-4: 220 18% 92%;
+  --chart-5: 220 20% 97%;
+}
+
 @layer base {
   * {
     @apply border-border;

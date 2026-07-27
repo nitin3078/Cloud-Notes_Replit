@@ -36,4 +36,20 @@ app.use(authMiddleware);
 
 app.use("/api", router);
 
+// 404 for unmatched /api routes
+app.use("/api", (_req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
+
+// Global error handler — ensures the client always gets JSON (never an HTML
+// error page), so failures surface properly in the UI instead of failing silently.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  req.log?.error({ err }, "Unhandled error");
+  if (res.headersSent) return;
+  res.status(500).json({
+    error: err instanceof Error ? err.message : "Internal server error",
+  });
+});
+
 export default app;

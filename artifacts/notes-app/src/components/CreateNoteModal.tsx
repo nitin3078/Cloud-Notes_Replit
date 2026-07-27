@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import ColorPicker from './ColorPicker';
 import { Folder, useCreateNote, useCreateFolder, getListNotesQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from '@/hooks/use-toast';
 
 interface CreateNoteModalProps {
   open: boolean;
@@ -42,33 +43,42 @@ export default function CreateNoteModal({ open, onOpenChange, folders, defaultFo
   }, [open, defaultFolderId]);
 
   const handleCreate = async () => {
-    let targetFolderId = folderId;
+    try {
+      let targetFolderId = folderId;
 
-    if (showNewFolder && newFolderName.trim()) {
-      const newFolder = await new Promise<Folder>((resolve, reject) => {
-        createFolder.mutate({ data: { name: newFolderName.trim() } }, {
-          onSuccess: (f) => resolve(f),
+      if (showNewFolder && newFolderName.trim()) {
+        const newFolder = await new Promise<Folder>((resolve, reject) => {
+          createFolder.mutate({ data: { name: newFolderName.trim() } }, {
+            onSuccess: (f) => resolve(f),
+            onError: reject,
+          });
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/folders'] });
+        targetFolderId = newFolder.id;
+      }
+
+      const note = await new Promise<{ id: number }>((resolve, reject) => {
+        createNote.mutate({
+          data: {
+            title: title.trim() || 'Untitled Note',
+            content: '',
+            folderId: targetFolderId,
+            color: color,
+          }
+        }, {
+          onSuccess: (n) => resolve(n),
           onError: reject,
         });
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/folders'] });
-      targetFolderId = newFolder.id;
-    }
 
-    createNote.mutate({
-      data: {
-        title: title.trim() || 'Untitled Note',
-        content: '',
-        folderId: targetFolderId,
-        color: color,
-      }
-    }, {
-      onSuccess: (note) => {
-        queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
-        onCreated(note.id);
-        onOpenChange(false);
-      }
-    });
+      queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
+      onCreated(note.id);
+      onOpenChange(false);
+    } catch (err) {
+      // The global mutation error handler (see App.tsx) already shows a toast;
+      // we just make sure the modal stays open so the person can retry.
+      console.error('Failed to create note:', err);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

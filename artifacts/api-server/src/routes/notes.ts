@@ -48,13 +48,19 @@ router.post("/notes", async (req, res): Promise<void> => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   const parsed = CreateNoteBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-  const [note] = await db.insert(notesTable).values({
-    ...parsed.data,
-    content: parsed.data.content ?? "",
-    userId: req.user.id,
-    sortOrder: parsed.data.sortOrder ?? Date.now(),
-  }).returning();
-  await db.insert(noteVersionsTable).values({ noteId: note.id, content: note.content });
+  // Wrapped in a transaction: if the version-history insert fails (e.g. schema
+  // drift), the note insert is rolled back too instead of leaving an orphaned,
+  // invisible note that the client never gets a response for.
+  const note = await db.transaction(async (tx) => {
+    const [inserted] = await tx.insert(notesTable).values({
+      ...parsed.data,
+      content: parsed.data.content ?? "",
+      userId: req.user.id,
+      sortOrder: parsed.data.sortOrder ?? Date.now(),
+    }).returning();
+    await tx.insert(noteVersionsTable).values({ noteId: inserted.id, content: inserted.content });
+    return inserted;
+  });
   const { passwordHash: _, ...safeNote } = note;
   res.status(201).json(safeNote);
 });
@@ -205,14 +211,17 @@ router.post("/notes/:id/versions/:versionId/restore-copy", async (req, res): Pro
   const [version] = await db.select().from(noteVersionsTable).where(and(eq(noteVersionsTable.id, versionId), eq(noteVersionsTable.noteId, noteId)));
   if (!version) { res.status(404).json({ error: "Version not found" }); return; }
   const dateStr = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  const [newNote] = await db.insert(notesTable).values({
-    title: `${note.title} — Restored ${dateStr}`,
-    content: version.content,
-    userId: req.user.id,
-    folderId: note.folderId,
-    sortOrder: Date.now(),
-  }).returning();
-  await db.insert(noteVersionsTable).values({ noteId: newNote.id, content: newNote.content });
+  const newNote = await db.transaction(async (tx) => {
+    const [inserted] = await tx.insert(notesTable).values({
+      title: `${note.title} — Restored ${dateStr}`,
+      content: version.content,
+      userId: req.user.id,
+      folderId: note.folderId,
+      sortOrder: Date.now(),
+    }).returning();
+    await tx.insert(noteVersionsTable).values({ noteId: inserted.id, content: inserted.content });
+    return inserted;
+  });
   const { passwordHash: _, ...safeNote } = newNote;
   res.status(201).json(safeNote);
 });

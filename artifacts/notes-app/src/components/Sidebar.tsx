@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Folder as FolderIcon, ChevronRight, ChevronDown, Plus,
   FileText, Pin, PinOff, Trash2, ArrowRight, GripVertical,
-  FolderPlus, RotateCcw, Flame
+  FolderPlus, RotateCcw, Flame, Sparkles
 } from 'lucide-react';
 import {
   Folder, Note,
@@ -18,6 +18,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { NOTE_COLORS } from '../lib/noteColors';
 import ColorPicker from './ColorPicker';
+import ThemeSwitcher from './ThemeSwitcher';
 
 import {
   ContextMenu, ContextMenuContent, ContextMenuItem,
@@ -33,6 +34,7 @@ interface SidebarProps {
   onSelectFolder: (id: number | 'all' | 'trash' | 'pinned') => void;
   onOpenNote: (note: Note) => void;
   onCreateNote: (defaultFolderId?: number | null) => void;
+  onOpenChat: () => void;
   user: any;
   onLogout: () => void;
 }
@@ -42,7 +44,7 @@ function ColorDot({ color }: { color?: string | null }) {
   return <span className="w-2 h-2 rounded-full shrink-0 inline-block" style={{ backgroundColor: color }} />;
 }
 
-export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, onCreateNote, user, onLogout }: SidebarProps) {
+export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, onCreateNote, onOpenChat, user, onLogout }: SidebarProps) {
   const queryClient = useQueryClient();
   const { activeTabId } = useTabs();
 
@@ -152,14 +154,27 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
       {/* Header */}
       <div className="p-4 flex items-center justify-between border-b border-border/50">
         <h1 className="font-serif text-2xl font-bold text-foreground tracking-tight">Folio</h1>
-        <div className="relative group cursor-pointer" onClick={onLogout}>
-          <div className="w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center font-bold text-sm shadow-sm ring-1 ring-border">
-            {(user?.firstName?.[0] || user?.email?.[0] || 'U').toUpperCase()}
-          </div>
-          <div className="absolute right-0 top-10 w-24 p-2 bg-popover text-popover-foreground shadow-md rounded border border-border opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none text-xs text-center z-50">
-            Sign out
+        <div className="flex items-center gap-1">
+          <ThemeSwitcher />
+          <div className="relative group cursor-pointer" onClick={onLogout}>
+            <div className="w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center font-bold text-sm shadow-sm ring-1 ring-border">
+              {(user?.firstName?.[0] || user?.email?.[0] || 'U').toUpperCase()}
+            </div>
+            <div className="absolute right-0 top-10 w-24 p-2 bg-popover text-popover-foreground shadow-md rounded border border-border opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none text-xs text-center z-50">
+              Sign out
+            </div>
           </div>
         </div>
+      </div>
+
+      <div className="px-3 pt-3">
+        <button
+          onClick={onOpenChat}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-primary/10 text-primary hover:bg-primary/15 transition-colors border border-primary/20"
+        >
+          <Sparkles size={16} />
+          Ask your notes
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-6 min-h-0">

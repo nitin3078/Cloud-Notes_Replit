@@ -6,6 +6,7 @@ import TabBar from '../components/TabBar';
 import Editor from '../components/Editor';
 import VersionHistory from '../components/VersionHistory';
 import CreateNoteModal from '../components/CreateNoteModal';
+import AiChatPanel from '../components/AiChatPanel';
 import Login from './Login';
 import { Edit3 } from 'lucide-react';
 import { Note, useListFolders } from '@workspace/api-client-react';
@@ -16,6 +17,7 @@ function HomeContent() {
   const [showHistoryForNoteId, setShowHistoryForNoteId] = useState<number | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createModalDefaultFolderId, setCreateModalDefaultFolderId] = useState<number | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
 
   const { activeTabId, openTab, unlockedNoteIds } = useTabs();
   const { data: folders = [] } = useListFolders();
@@ -38,6 +40,7 @@ function HomeContent() {
         onSelectFolder={setSelectedFolderId}
         onOpenNote={handleOpenNote}
         onCreateNote={handleCreateNote}
+        onOpenChat={() => setChatOpen(true)}
         user={user}
         onLogout={logout}
       />
@@ -91,6 +94,11 @@ function HomeContent() {
           </div>
         )}
       </div>
+
+      {/* AI Chat Panel */}
+      {chatOpen && (
+        <AiChatPanel onClose={() => setChatOpen(false)} />
+      )}
 
       {/* Create Note Modal */}
       <CreateNoteModal
