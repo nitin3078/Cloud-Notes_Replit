@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Folio – Personal Notes"
+version = "1.0.0"
+id = "artifacts/notes-app"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25135
+
+[services.development]
+run = "pnpm --filter @workspace/notes-app run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/notes-app", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/notes-app/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25135"
+BASE_PATH = "/"

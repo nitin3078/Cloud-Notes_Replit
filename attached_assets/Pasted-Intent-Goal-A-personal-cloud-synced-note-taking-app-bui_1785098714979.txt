@@ -1,0 +1,35 @@
+Intent & Goal
+
+A personal cloud-synced note-taking app built to fix the shortcomings of Apple Notes. It gives one user a warm, notebook-like writing environment with rich text editing, folder organization, tabbed navigation, pinned notes, full version history with soft-delete recovery, and manual drag-and-drop ordering of notes. Every note is securely stored in the cloud so it's accessible and restorable from any device — web or Apple.
+
+Audience & Roles
+
+Single user (personal app, no multi-user or sharing). The user is both owner and writer. All data is private and tied to their authenticated account. No guest or viewer roles needed.
+
+Core Flows
+
+These flows must work end-to-end:
+
+Create & organize: User opens app → sees sidebar with folder tree (default: All Notes, Pinned, Trash) + pinned notes at top → clicks a folder or creates a new one → creates a new note inside it → note opens as a new tab in the editor area → writes with rich text toolbar (headings H1–H3, bold, italic, underline, bullet list, numbered list, checklist, inline code) → note auto-saves to cloud every few seconds.
+
+Tab navigation: User has multiple notes open as horizontal tabs across the top of the editor → can switch between tabs by clicking → can close a tab (X) without deleting the note → can reorder tabs by drag → reopening a closed note re-opens it as a tab.
+
+Folder management: User can create, rename, and delete folders in the sidebar → notes can be moved between folders via drag-and-drop or right-click context menu → folders can be nested one level deep (folder → subfolder).
+
+Pin notes: User right-clicks a note or uses a kebab menu → selects Pin → note appears in a Pinned section at the top of the sidebar and remains accessible regardless of which folder is selected.
+
+Manual note ordering: Within any folder or the All Notes view, the user can drag and drop notes in the list to reorder them manually. The custom order is persisted to the cloud per folder. A sort toggle in the sidebar header lets the user switch between 'Manual order' and 'Last updated' — switching to manual order always restores their last saved drag order. Pinned notes have their own independent drag order within the Pinned section.
+
+Version history: Every save creates a versioned snapshot stored with a timestamp → user opens a note → clicks 'History' button in the toolbar → a side panel slides open showing a timeline of versions with timestamps → user clicks any version to preview its content → user can click 'Restore as Copy' which creates a new duplicate note titled '[Original Title] — Restored [date]' placed in the same folder → user can then compare both and delete the one they don't want.
+
+Soft-delete & recovery: User deletes a note → it moves to Trash folder, not permanently deleted → Trash appears in sidebar → user can browse deleted notes → restore a note (moves back to its original folder) or permanently delete it → Trash auto-purges notes older than 30 days.
+
+Cloud sync & cross-device: All notes, folders, pins, version history, and manual sort order sync to the cloud in real time → user can open the web app on any browser or device and see the same state → login required to access notes.
+
+Technical Requirements
+
+Single-user personal app — all data scoped to the authenticated user. Rich text editor using react-quill-new (already installed). Drag-and-drop for note reordering uses @hello-pangea/dnd (already installed). Note ordering: each Note stores a sortOrder integer field per folder; when the user reorders via drag, sortOrder values are updated and persisted. Notes entity fields: title, content (HTML string), folderId, isPinned, isDeleted, deletedAt, sortOrder (integer), createdAt, updatedAt. NoteVersion entity: noteId, content (HTML), createdAt. Folder entity: name, parentFolderId (nullable, one level of nesting), createdAt. Auto-save debounced; version snapshot grouped per 5-minute window. Cloud sync via Base44 entities. Fully responsive for web and iOS Safari. Tabs state in React local state only (not persisted across sessions).
+
+Design Preferences
+
+Warm & personal — paper-like notebook aesthetic. Think aged parchment tones, warm off-whites (#FAF7F2 background), soft warm grays for the sidebar (#F0EBE3), dark sepia-brown typography (#2C1A0E) instead of pure black. Serif or humanist sans-serif fonts — consider a Google Font like "Lora" for note body text and "Inter" for UI chrome. Subtle paper texture overlays on the editor area. Thin warm-brown borders (#D4C4B0). Toolbar icons are minimal and SVG-clean. The editor feels like opening a physical notebook — generous line height (1.8), comfortable padding, soft focus state. Tabs look like physical paper tabs with slightly different warm tones for active vs inactive. Sidebar has a gentle shadow separating it from the editor. No harsh colors — no pure black, no cold blues. Accent color: warm amber/terracotta (#C4713A) for CTAs, active states, and highlights. Drag handles on note list items are subtle (shown on hover) — a small grip icon in warm gray. The overall mood: calm, focused, personal, trustworthy.
