@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, boolean, integer, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean, integer, bigint, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./auth";
@@ -21,7 +21,9 @@ export const notesTable = pgTable("notes", {
   isPinned: boolean("is_pinned").notNull().default(false),
   isDeleted: boolean("is_deleted").notNull().default(false),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
-  sortOrder: integer("sort_order").notNull().default(0),
+  // bigint, not integer: sortOrder is seeded with Date.now() (a ~13-digit ms
+  // timestamp), which overflows Postgres's 32-bit integer range (~2.1 billion).
+  sortOrder: bigint("sort_order", { mode: "number" }).notNull().default(0),
   color: varchar("color"),
   isLocked: boolean("is_locked").notNull().default(false),
   passwordHash: varchar("password_hash"),
