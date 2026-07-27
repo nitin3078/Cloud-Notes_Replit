@@ -5,6 +5,7 @@ import foldersRouter from "./folders";
 import notesRouter from "./notes";
 import statsRouter from "./stats";
 import aiRouter from "./ai";
+import plannerRouter from "./planner";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(foldersRouter);
 router.use(notesRouter);
 router.use(statsRouter);
 router.use(aiRouter);
+router.use(plannerRouter);
 
 export default router;

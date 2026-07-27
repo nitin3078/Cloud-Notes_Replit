@@ -255,6 +255,94 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /planner-entries:
+    get:
+      operationId: listPlannerEntries
+      tags: [planner]
+      summary: List all planner entries (sparse — only dates that have entries)
+      responses:
+        "200":
+          description: List of planner entries, ordered by date
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlannerEntry"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createPlannerEntry
+      tags: [planner]
+      summary: Add a task to a date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlannerEntryInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlannerEntry"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /planner-entries/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    patch:
+      operationId: updatePlannerEntry
+      tags: [planner]
+      summary: Edit a planner entry's task text or done status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlannerEntryPatch"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlannerEntry"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deletePlannerEntry
+      tags: [planner]
+      summary: Remove a planner entry
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /notes:
     get:
       operationId: listNotes
@@ -864,6 +952,51 @@ components:
         updatedAt:
           type: string
           format: date-time
+
+    PlannerEntry:
+      type: object
+      required: [id, userId, date, task, isDone, sortOrder, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        date:
+          type: string
+          description: Plain date, no time component (e.g. "2026-08-03")
+        task:
+          type: string
+        isDone:
+          type: boolean
+        sortOrder:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PlannerEntryInput:
+      type: object
+      required: [date, task]
+      properties:
+        date:
+          type: string
+        task:
+          type: string
+          minLength: 1
+
+    PlannerEntryPatch:
+      type: object
+      properties:
+        task:
+          type: string
+          minLength: 1
+        isDone:
+          type: boolean
+        sortOrder:
+          type: integer
 
     NoteInput:
       type: object

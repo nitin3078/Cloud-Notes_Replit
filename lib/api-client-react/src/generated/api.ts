@@ -43,6 +43,9 @@ import type {
   NotePatch,
   NoteVersion,
   PasswordVerifyResult,
+  PlannerEntry,
+  PlannerEntryInput,
+  PlannerEntryPatch,
   ReorderInput
 } from './api.schemas';
 
@@ -910,6 +913,297 @@ export const useDeleteFolder = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getDeleteFolderMutationOptions(options));
+    }
+
+export const getListPlannerEntriesUrl = () => {
+
+
+
+
+  return `/api/planner-entries`
+}
+
+/**
+ * @summary List all planner entries (sparse — only dates that have entries)
+ */
+export const listPlannerEntries = async ( options?: RequestInit): Promise<PlannerEntry[]> => {
+
+  return customFetch<PlannerEntry[]>(getListPlannerEntriesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPlannerEntriesQueryKey = () => {
+    return [
+    `/api/planner-entries`
+    ] as const;
+    }
+
+
+export const getListPlannerEntriesQueryOptions = <TData = Awaited<ReturnType<typeof listPlannerEntries>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlannerEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPlannerEntriesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPlannerEntries>>> = ({ signal }) => listPlannerEntries({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPlannerEntries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPlannerEntriesQueryResult = NonNullable<Awaited<ReturnType<typeof listPlannerEntries>>>
+export type ListPlannerEntriesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List all planner entries (sparse — only dates that have entries)
+ */
+
+export function useListPlannerEntries<TData = Awaited<ReturnType<typeof listPlannerEntries>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlannerEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPlannerEntriesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePlannerEntryUrl = () => {
+
+
+
+
+  return `/api/planner-entries`
+}
+
+/**
+ * @summary Add a task to a date
+ */
+export const createPlannerEntry = async (plannerEntryInput: PlannerEntryInput, options?: RequestInit): Promise<PlannerEntry> => {
+
+  return customFetch<PlannerEntry>(getCreatePlannerEntryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(plannerEntryInput)
+  }
+);}
+
+
+
+
+
+export const getCreatePlannerEntryMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPlannerEntry>>, TError,{data: BodyType<PlannerEntryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPlannerEntry>>, TError,{data: BodyType<PlannerEntryInput>}, TContext> => {
+
+const mutationKey = ['createPlannerEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPlannerEntry>>, {data: BodyType<PlannerEntryInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPlannerEntry(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePlannerEntryMutationResult = NonNullable<Awaited<ReturnType<typeof createPlannerEntry>>>
+    export type CreatePlannerEntryMutationBody = BodyType<PlannerEntryInput>
+    export type CreatePlannerEntryMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Add a task to a date
+ */
+export const useCreatePlannerEntry = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPlannerEntry>>, TError,{data: BodyType<PlannerEntryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPlannerEntry>>,
+        TError,
+        {data: BodyType<PlannerEntryInput>},
+        TContext
+      > => {
+      return useMutation(getCreatePlannerEntryMutationOptions(options));
+    }
+
+export const getUpdatePlannerEntryUrl = (id: number,) => {
+
+
+
+
+  return `/api/planner-entries/${id}`
+}
+
+/**
+ * @summary Edit a planner entry's task text or done status
+ */
+export const updatePlannerEntry = async (id: number,
+    plannerEntryPatch: PlannerEntryPatch, options?: RequestInit): Promise<PlannerEntry> => {
+
+  return customFetch<PlannerEntry>(getUpdatePlannerEntryUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(plannerEntryPatch)
+  }
+);}
+
+
+
+
+
+export const getUpdatePlannerEntryMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlannerEntry>>, TError,{id: number;data: BodyType<PlannerEntryPatch>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePlannerEntry>>, TError,{id: number;data: BodyType<PlannerEntryPatch>}, TContext> => {
+
+const mutationKey = ['updatePlannerEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePlannerEntry>>, {id: number;data: BodyType<PlannerEntryPatch>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updatePlannerEntry(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePlannerEntryMutationResult = NonNullable<Awaited<ReturnType<typeof updatePlannerEntry>>>
+    export type UpdatePlannerEntryMutationBody = BodyType<PlannerEntryPatch>
+    export type UpdatePlannerEntryMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Edit a planner entry's task text or done status
+ */
+export const useUpdatePlannerEntry = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlannerEntry>>, TError,{id: number;data: BodyType<PlannerEntryPatch>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePlannerEntry>>,
+        TError,
+        {id: number;data: BodyType<PlannerEntryPatch>},
+        TContext
+      > => {
+      return useMutation(getUpdatePlannerEntryMutationOptions(options));
+    }
+
+export const getDeletePlannerEntryUrl = (id: number,) => {
+
+
+
+
+  return `/api/planner-entries/${id}`
+}
+
+/**
+ * @summary Remove a planner entry
+ */
+export const deletePlannerEntry = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeletePlannerEntryUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeletePlannerEntryMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePlannerEntry>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePlannerEntry>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deletePlannerEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePlannerEntry>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deletePlannerEntry(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePlannerEntryMutationResult = NonNullable<Awaited<ReturnType<typeof deletePlannerEntry>>>
+
+    export type DeletePlannerEntryMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Remove a planner entry
+ */
+export const useDeletePlannerEntry = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePlannerEntry>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePlannerEntry>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeletePlannerEntryMutationOptions(options));
     }
 
 export const getListNotesUrl = (params?: ListNotesParams,) => {

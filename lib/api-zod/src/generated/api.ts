@@ -178,6 +178,83 @@ export const DeleteFolderResponse = zod.void()
 
 
 /**
+ * @summary List all planner entries (sparse — only dates that have entries)
+ */
+export const ListPlannerEntriesResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.string(),
+  "date": zod.string().describe('Plain date, no time component (e.g. \"2026-08-03\")'),
+  "task": zod.string(),
+  "isDone": zod.boolean(),
+  "sortOrder": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListPlannerEntriesResponse = zod.array(ListPlannerEntriesResponseItem)
+
+
+/**
+ * @summary Add a task to a date
+ */
+
+
+
+export const CreatePlannerEntryBody = zod.object({
+  "date": zod.string(),
+  "task": zod.string().min(1)
+})
+
+export const CreatePlannerEntryResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.string(),
+  "date": zod.string().describe('Plain date, no time component (e.g. \"2026-08-03\")'),
+  "task": zod.string(),
+  "isDone": zod.boolean(),
+  "sortOrder": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Edit a planner entry's task text or done status
+ */
+export const UpdatePlannerEntryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdatePlannerEntryBody = zod.object({
+  "task": zod.string().min(1).optional(),
+  "isDone": zod.boolean().optional(),
+  "sortOrder": zod.number().optional()
+})
+
+export const UpdatePlannerEntryResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.string(),
+  "date": zod.string().describe('Plain date, no time component (e.g. \"2026-08-03\")'),
+  "task": zod.string(),
+  "isDone": zod.boolean(),
+  "sortOrder": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove a planner entry
+ */
+export const DeletePlannerEntryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeletePlannerEntryResponse = zod.void()
+
+
+/**
  * @summary List notes, optionally filtered by folder
  */
 export const ListNotesQueryParams = zod.object({

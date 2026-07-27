@@ -110,6 +110,31 @@ export interface Note {
   updatedAt: string;
 }
 
+export interface PlannerEntry {
+  id: number;
+  userId: string;
+  /** Plain date, no time component (e.g. "2026-08-03") */
+  date: string;
+  task: string;
+  isDone: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlannerEntryInput {
+  date: string;
+  /** @minLength 1 */
+  task: string;
+}
+
+export interface PlannerEntryPatch {
+  /** @minLength 1 */
+  task?: string;
+  isDone?: boolean;
+  sortOrder?: number;
+}
+
 export type NoteInputNoteStyle = typeof NoteInputNoteStyle[keyof typeof NoteInputNoteStyle];
 
 

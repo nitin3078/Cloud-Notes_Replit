@@ -7,6 +7,7 @@ import Editor from '../components/Editor';
 import VersionHistory from '../components/VersionHistory';
 import CreateNoteModal from '../components/CreateNoteModal';
 import AiChatPanel from '../components/AiChatPanel';
+import Planner from '../components/Planner';
 import Login from './Login';
 import { Edit3 } from 'lucide-react';
 import { Note, useListFolders } from '@workspace/api-client-react';
@@ -19,6 +20,7 @@ function HomeContent() {
   const [createModalDefaultFolderId, setCreateModalDefaultFolderId] = useState<number | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatNoteId, setChatNoteId] = useState<number | null>(null);
+  const [plannerOpen, setPlannerOpen] = useState(false);
 
   const { activeTabId, openTab, unlockedNoteIds } = useTabs();
   const { data: folders = [] } = useListFolders();
@@ -42,40 +44,47 @@ function HomeContent() {
         onOpenNote={handleOpenNote}
         onCreateNote={handleCreateNote}
         onOpenChat={() => { setChatNoteId(null); setChatOpen(true); }}
+        onOpenPlanner={() => setPlannerOpen(true)}
         user={user}
         onLogout={logout}
       />
 
       <div className="flex-1 flex flex-col min-w-0 relative bg-background/50">
-        <TabBar
-          selectedFolderId={selectedFolderId}
-          onCreateNote={handleCreateNote}
-        />
-
-        {activeTabId ? (
-          <Editor
-            key={activeTabId}
-            noteId={activeTabId}
-            onOpenHistory={() => setShowHistoryForNoteId(activeTabId)}
-            onOpenChat={(noteId) => { setChatNoteId(noteId); setChatOpen(true); }}
-          />
+        {plannerOpen ? (
+          <Planner onClose={() => setPlannerOpen(false)} />
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-700">
-            <div className="w-24 h-24 mb-6 rounded-full bg-sidebar flex items-center justify-center border border-border shadow-inner">
-              <Edit3 className="w-10 h-10 text-muted-foreground/50" strokeWidth={1.5} />
-            </div>
-            <h2 className="text-3xl font-serif text-foreground font-medium mb-3">Your blank page awaits</h2>
-            <p className="text-muted-foreground font-serif italic max-w-sm leading-relaxed">
-              Select a note to start writing, or click{' '}
-              <button
-                onClick={() => handleCreateNote(null)}
-                className="text-primary hover:underline font-medium not-italic"
-              >
-                + New Note
-              </button>
-              .
-            </p>
-          </div>
+          <>
+            <TabBar
+              selectedFolderId={selectedFolderId}
+              onCreateNote={handleCreateNote}
+            />
+
+            {activeTabId ? (
+              <Editor
+                key={activeTabId}
+                noteId={activeTabId}
+                onOpenHistory={() => setShowHistoryForNoteId(activeTabId)}
+                onOpenChat={(noteId) => { setChatNoteId(noteId); setChatOpen(true); }}
+              />
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-700">
+                <div className="w-24 h-24 mb-6 rounded-full bg-sidebar flex items-center justify-center border border-border shadow-inner">
+                  <Edit3 className="w-10 h-10 text-muted-foreground/50" strokeWidth={1.5} />
+                </div>
+                <h2 className="text-3xl font-serif text-foreground font-medium mb-3">Your blank page awaits</h2>
+                <p className="text-muted-foreground font-serif italic max-w-sm leading-relaxed">
+                  Select a note to start writing, or click{' '}
+                  <button
+                    onClick={() => handleCreateNote(null)}
+                    className="text-primary hover:underline font-medium not-italic"
+                  >
+                    + New Note
+                  </button>
+                  .
+                </p>
+              </div>
+            )}
+          </>
         )}
 
         {/* Version History Panel */}

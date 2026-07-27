@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, boolean, integer, bigint, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean, integer, bigint, varchar, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./auth";
@@ -37,6 +37,22 @@ export const noteVersionsTable = pgTable("note_versions", {
   noteId: integer("note_id").notNull().references(() => notesTable.id, { onDelete: "cascade" }),
   content: text("content").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Sparse date -> task planner. Only dates with at least one entry ever show up
+// in the UI — there's no row for every day, just the ones the user actually
+// added something to.
+export const plannerEntriesTable = pgTable("planner_entries", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  // Stored as a plain "YYYY-MM-DD" date (no time component) since this is a
+  // day-level planner, not a scheduling/calendar-with-times feature.
+  date: date("date").notNull(),
+  task: text("task").notNull(),
+  isDone: boolean("is_done").notNull().default(false),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
 export const insertFolderSchema = createInsertSchema(foldersTable).omit({ id: true, createdAt: true, updatedAt: true });

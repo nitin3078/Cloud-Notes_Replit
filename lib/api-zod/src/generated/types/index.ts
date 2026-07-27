@@ -36,4 +36,7 @@ export * from './notePatch';
 export * from './notePatchNoteStyle';
 export * from './noteVersion';
 export * from './passwordVerifyResult';
+export * from './plannerEntry';
+export * from './plannerEntryInput';
+export * from './plannerEntryPatch';
 export * from './reorderInput';

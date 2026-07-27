@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Folder as FolderIcon, ChevronRight, ChevronDown, Plus,
   FileText, Pin, PinOff, Trash2, ArrowRight, GripVertical,
-  FolderPlus, RotateCcw, Flame, Sparkles
+  FolderPlus, RotateCcw, Flame, Sparkles, CalendarClock
 } from 'lucide-react';
 import {
   Folder, Note,
@@ -35,6 +35,7 @@ interface SidebarProps {
   onOpenNote: (note: Note) => void;
   onCreateNote: (defaultFolderId?: number | null) => void;
   onOpenChat: () => void;
+  onOpenPlanner: () => void;
   user: any;
   onLogout: () => void;
 }
@@ -44,7 +45,7 @@ function ColorDot({ color }: { color?: string | null }) {
   return <span className="w-2 h-2 rounded-full shrink-0 inline-block" style={{ backgroundColor: color }} />;
 }
 
-export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, onCreateNote, onOpenChat, user, onLogout }: SidebarProps) {
+export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, onCreateNote, onOpenChat, onOpenPlanner, user, onLogout }: SidebarProps) {
   const queryClient = useQueryClient();
   const { activeTabId } = useTabs();
 
@@ -183,13 +184,20 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
         </div>
       </div>
 
-      <div className="px-3 pt-3">
+      <div className="px-3 pt-3 flex flex-col gap-2">
         <button
           onClick={onOpenChat}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-primary/10 text-primary hover:bg-primary/15 transition-colors border border-primary/20"
         >
           <Sparkles size={16} />
           Ask your notes
+        </button>
+        <button
+          onClick={onOpenPlanner}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium hover:bg-sidebar-accent/50 transition-colors border border-transparent"
+        >
+          <CalendarClock size={16} className="text-muted-foreground" />
+          Planner
         </button>
       </div>
 
