@@ -5,6 +5,7 @@
  * Folio – Personal Notes API
  * OpenAPI spec version: 0.1.0
  */
+import type { NoteInputNoteStyle } from './noteInputNoteStyle';
 
 export interface NoteInput {
   /** @minLength 1 */
@@ -15,4 +16,5 @@ export interface NoteInput {
   /** @nullable */
   color?: string | null;
   sortOrder?: number;
+  noteStyle?: NoteInputNoteStyle;
 }

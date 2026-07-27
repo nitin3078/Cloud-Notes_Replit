@@ -1,9 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Sparkles, Send, Mic, MicOff, Loader2 } from 'lucide-react';
+import { X, Sparkles, Send, Mic, MicOff, Loader2, PenLine, Check } from 'lucide-react';
+import { useGetNote, useUpdateNote, getGetNoteQueryKey, getListNotesQueryKey } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface ChatMessage {
+  id: string;
   role: 'user' | 'assistant';
   content: string;
+  insertedIntoNote?: boolean;
 }
 
 interface AiChatPanelProps {
@@ -13,6 +17,10 @@ interface AiChatPanelProps {
 }
 
 export default function AiChatPanel({ onClose, noteId }: AiChatPanelProps) {
+  const queryClient = useQueryClient();
+  const { data: note } = useGetNote(noteId ?? 0, { query: { enabled: !!noteId, queryKey: getGetNoteQueryKey(noteId ?? 0) } });
+  const updateNote = useUpdateNote();
+  const [insertingId, setInsertingId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -37,7 +45,7 @@ export default function AiChatPanel({ onClose, noteId }: AiChatPanelProps) {
     const text = (textOverride ?? input).trim();
     if (!text || isSending) return;
 
-    const nextMessages: ChatMessage[] = [...messages, { role: 'user', content: text }];
+    const nextMessages: ChatMessage[] = [...messages, { id: crypto.randomUUID(), role: 'user', content: text }];
     setMessages(nextMessages);
     setInput('');
     setError(null);
@@ -51,7 +59,7 @@ export default function AiChatPanel({ onClose, noteId }: AiChatPanelProps) {
         body: JSON.stringify({
           message: text,
           // Send prior turns so the assistant has conversational context.
-          history: nextMessages.slice(0, -1).slice(-10),
+          history: nextMessages.slice(0, -1).slice(-10).map(({ role, content }) => ({ role, content })),
           noteId: noteId ?? undefined,
         }),
       });
@@ -62,12 +70,36 @@ export default function AiChatPanel({ onClose, noteId }: AiChatPanelProps) {
       }
 
       const data = await res.json();
-      setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }]);
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: data.reply }]);
     } catch (err: any) {
       setError(err?.message || 'Something went wrong. Please try again.');
     } finally {
       setIsSending(false);
     }
+  };
+
+  const insertIntoNote = (message: ChatMessage) => {
+    if (!noteId) return;
+    setInsertingId(message.id);
+    const signature = `<p><br></p><hr><p><em>✨ Added by AI — ${new Date().toLocaleString()}</em></p>`;
+    const body = message.content
+      .split(/\n{2,}/)
+      .map((para) => `<p>${para.replace(/\n/g, '<br>')}</p>`)
+      .join('');
+    const currentContent = note?.content ?? '';
+    const newContent = `${currentContent}${signature}${body}`;
+
+    updateNote.mutate({ id: noteId, data: { content: newContent } }, {
+      onSuccess: (updated) => {
+        queryClient.setQueryData(getGetNoteQueryKey(noteId), (old: any) =>
+          old ? { ...old, content: updated.content, updatedAt: updated.updatedAt } : old
+        );
+        queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
+        setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, insertedIntoNote: true } : m)));
+        setInsertingId(null);
+      },
+      onError: () => setInsertingId(null),
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -126,19 +158,21 @@ export default function AiChatPanel({ onClose, noteId }: AiChatPanelProps) {
 
       {noteId && (
         <div className="px-4 py-2 text-xs text-muted-foreground bg-accent/40 border-b border-border/50">
-          Answering from this note only
+          Answering from this note only — ask it to draft something, then use "Insert into note" to add it.
         </div>
       )}
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && !isSending && (
           <div className="text-center text-sm text-muted-foreground italic font-serif py-8">
-            Ask me anything about your notes — "What did I write about the Q3 budget?" or "Summarize my trip notes."
+            {noteId
+              ? 'Ask me to summarize, rewrite, or add something to this note — I can write it in for you.'
+              : 'Ask me anything about your notes — "What did I write about the Q3 budget?" or "Summarize my trip notes."'}
           </div>
         )}
 
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+        {messages.map((m) => (
+          <div key={m.id} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
             <div
               className={`max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap leading-relaxed ${
                 m.role === 'user'
@@ -148,6 +182,23 @@ export default function AiChatPanel({ onClose, noteId }: AiChatPanelProps) {
             >
               {m.content}
             </div>
+            {m.role === 'assistant' && noteId && (
+              m.insertedIntoNote ? (
+                <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                  <Check size={12} className="text-primary" /> Added to note
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => insertIntoNote(m)}
+                  disabled={insertingId === m.id}
+                  className="mt-1 flex items-center gap-1 text-xs text-primary hover:underline disabled:opacity-50"
+                >
+                  {insertingId === m.id ? <Loader2 size={12} className="animate-spin" /> : <PenLine size={12} />}
+                  {insertingId === m.id ? 'Writing to note…' : 'Insert into note'}
+                </button>
+              )
+            )}
           </div>
         ))}
 

@@ -28,6 +28,7 @@ import {
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface SidebarProps {
   selectedFolderId: number | 'all' | 'trash' | 'pinned';
@@ -132,6 +133,21 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
+    const { droppableId: destId } = result.destination;
+
+    // Dropped onto a folder (or "All Notes" / library root) in the tree — move it there.
+    if (destId.startsWith('folder-')) {
+      const noteId = parseInt(result.draggableId, 10);
+      const target = destId.replace('folder-', '');
+      const targetFolderId = target === 'all' ? null : parseInt(target, 10);
+      moveNote.mutate({ id: noteId, data: { folderId: targetFolderId } }, { onSuccess: invalidateNotes });
+      return;
+    }
+
+    // Otherwise, reordering within the current note list. Skip while viewing "All
+    // Notes" — dragging there is only meant for moving notes into a folder, since
+    // sortOrder reordering across mixed folders isn't a coherent operation.
+    if (selectedFolderId === 'all') return;
     const sourceIndex = result.source.index;
     const destIndex = result.destination.index;
     if (sourceIndex === destIndex) return;
@@ -151,6 +167,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
 
   return (
     <div className="w-72 h-full bg-sidebar flex flex-col border-r border-border text-sidebar-foreground">
+    <DragDropContext onDragEnd={handleDragEnd}>
       {/* Header */}
       <div className="p-4 flex items-center justify-between border-b border-border/50">
         <h1 className="font-serif text-2xl font-bold text-foreground tracking-tight">Folio</h1>
@@ -186,14 +203,35 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
             { id: 'pinned' as const, icon: Pin, label: 'Pinned' },
             { id: 'trash' as const, icon: Trash2, label: 'Trash' },
           ].map(({ id, icon: Icon, label }) => (
-            <button
-              key={id}
-              onClick={() => onSelectFolder(id)}
-              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${selectedFolderId === id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'hover:bg-sidebar-accent/50'}`}
-            >
-              <Icon size={16} className="text-muted-foreground" />
-              {label}
-            </button>
+            id === 'all' ? (
+              <Droppable key={id} droppableId="folder-all" isDropDisabled={false}>
+                {(provided, snapshot) => (
+                  <div ref={provided.innerRef} {...provided.droppableProps}>
+                    <button
+                      onClick={() => onSelectFolder(id)}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors border ${
+                        snapshot.isDraggingOver ? 'bg-primary/10 border-primary/40' :
+                        selectedFolderId === id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium border-transparent' :
+                        'hover:bg-sidebar-accent/50 border-transparent'
+                      }`}
+                    >
+                      <Icon size={16} className="text-muted-foreground" />
+                      {label}
+                    </button>
+                    <div className="hidden">{provided.placeholder}</div>
+                  </div>
+                )}
+              </Droppable>
+            ) : (
+              <button
+                key={id}
+                onClick={() => onSelectFolder(id)}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${selectedFolderId === id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'hover:bg-sidebar-accent/50'}`}
+              >
+                <Icon size={16} className="text-muted-foreground" />
+                {label}
+              </button>
+            )
           ))}
         </div>
 
@@ -232,13 +270,24 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                           className="flex-1 px-2 py-1 text-sm bg-background border border-primary rounded outline-none"
                         />
                       ) : (
-                        <button
-                          onClick={() => onSelectFolder(folder.id)}
-                          className={`flex-1 flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${selectedFolderId === folder.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'hover:bg-sidebar-accent/50'}`}
-                        >
-                          <FolderIcon size={16} className="text-muted-foreground fill-current opacity-20" />
-                          <span className="flex-1 text-left truncate">{folder.name}</span>
-                        </button>
+                        <Droppable droppableId={`folder-${folder.id}`} isDropDisabled={false}>
+                          {(provided, snapshot) => (
+                            <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1">
+                              <button
+                                onClick={() => onSelectFolder(folder.id)}
+                                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors border ${
+                                  snapshot.isDraggingOver ? 'bg-primary/10 border-primary/40' :
+                                  selectedFolderId === folder.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium border-transparent' :
+                                  'hover:bg-sidebar-accent/50 border-transparent'
+                                }`}
+                              >
+                                <FolderIcon size={16} className="text-muted-foreground fill-current opacity-20" />
+                                <span className="flex-1 text-left truncate">{folder.name}</span>
+                              </button>
+                              <div className="hidden">{provided.placeholder}</div>
+                            </div>
+                          )}
+                        </Droppable>
                       )}
                     </div>
                   </ContextMenuTrigger>
@@ -264,13 +313,24 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                     {subfolders.map(sub => (
                       <ContextMenu key={sub.id}>
                         <ContextMenuTrigger asChild>
-                          <button
-                            onClick={() => onSelectFolder(sub.id)}
-                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${selectedFolderId === sub.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'hover:bg-sidebar-accent/50'}`}
-                          >
-                            <FolderIcon size={14} className="text-muted-foreground fill-current opacity-20" />
-                            <span className="flex-1 text-left truncate">{sub.name}</span>
-                          </button>
+                          <Droppable droppableId={`folder-${sub.id}`} isDropDisabled={false}>
+                            {(provided, snapshot) => (
+                              <div ref={provided.innerRef} {...provided.droppableProps}>
+                                <button
+                                  onClick={() => onSelectFolder(sub.id)}
+                                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors border ${
+                                    snapshot.isDraggingOver ? 'bg-primary/10 border-primary/40' :
+                                    selectedFolderId === sub.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium border-transparent' :
+                                    'hover:bg-sidebar-accent/50 border-transparent'
+                                  }`}
+                                >
+                                  <FolderIcon size={14} className="text-muted-foreground fill-current opacity-20" />
+                                  <span className="flex-1 text-left truncate">{sub.name}</span>
+                                </button>
+                                <div className="hidden">{provided.placeholder}</div>
+                              </div>
+                            )}
+                          </Droppable>
                         </ContextMenuTrigger>
                         <ContextMenuContent className="w-48">
                           <ContextMenuItem onClick={() => onCreateNote(sub.id)}>
@@ -327,27 +387,28 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
               {selectedFolderId === 'trash' ? 'Trash is empty.' : 'No notes here.'}
             </div>
           ) : (
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <Droppable droppableId="notes-list">
+            <Droppable droppableId="notes-list">
                 {(provided) => (
                   <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
                     {displayNotes.map((note, index) => {
-                      const isDragDisabled = selectedFolderId === 'trash' || selectedFolderId === 'all' || sortBy === 'updatedAt';
+                      const isDragDisabled = selectedFolderId === 'trash' || sortBy === 'updatedAt';
                       return (
                         <Draggable key={note.id} draggableId={note.id.toString()} index={index} isDragDisabled={isDragDisabled}>
                           {(provided, snapshot) => (
                             <ContextMenu>
+                              <Tooltip delayDuration={500}>
                               <ContextMenuTrigger asChild>
+                              <TooltipTrigger asChild>
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   onClick={() => onOpenNote(note)}
-                                  className={`group flex flex-col p-3 rounded-md cursor-pointer transition-all border ${
+                                  className={`group flex flex-col p-3 rounded-md cursor-pointer transition-colors border ${
                                     activeTabId === note.id
                                       ? 'bg-card border-primary/20 shadow-sm'
                                       : snapshot.isDragging
                                       ? 'bg-card shadow-lg border-primary/50'
-                                      : 'bg-transparent border-transparent hover:bg-black/5 hover:border-border/50'
+                                      : 'bg-transparent border-transparent hover:bg-sidebar-accent/60 hover:border-border/60'
                                   }`}
                                   style={note.color ? { borderLeftColor: note.color, borderLeftWidth: '3px' } : {}}
                                 >
@@ -373,7 +434,19 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                                     {note.content ? note.content.replace(/<[^>]+>/g, '').substring(0, 80) : 'No content...'}
                                   </div>
                                 </div>
+                              </TooltipTrigger>
                               </ContextMenuTrigger>
+                              <TooltipContent
+                                side="right"
+                                align="start"
+                                className="max-w-xs max-h-64 overflow-y-auto bg-popover text-popover-foreground border border-border shadow-md px-3 py-2 whitespace-pre-wrap text-xs leading-relaxed"
+                              >
+                                <p className="font-semibold font-serif mb-1 text-sm">{note.title || 'Untitled Note'}</p>
+                                {note.content
+                                  ? note.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || 'No content yet.'
+                                  : 'No content yet.'}
+                              </TooltipContent>
+                              </Tooltip>
 
                               <ContextMenuContent className="w-52">
                                 {note.isDeleted ? (
@@ -460,10 +533,10 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                   </div>
                 )}
               </Droppable>
-            </DragDropContext>
           )}
         </div>
       </div>
+    </DragDropContext>
     </div>
   );
 }
