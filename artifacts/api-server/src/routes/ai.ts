@@ -13,6 +13,8 @@ interface ChatRequestBody {
   message: string;
   history?: ChatMessage[];
   noteId?: number;
+  /** When true, skip the notes-only restriction and answer with general knowledge. */
+  allowGeneral?: boolean;
 }
 
 function parseChatBody(body: unknown): { data: ChatRequestBody } | { error: string } {
@@ -48,7 +50,9 @@ function parseChatBody(body: unknown): { data: ChatRequestBody } | { error: stri
     noteId = b.noteId;
   }
 
-  return { data: { message: b.message, history, noteId } };
+  const allowGeneral = b.allowGeneral === true;
+
+  return { data: { message: b.message, history, noteId, allowGeneral } };
 }
 
 const MAX_CONTEXT_CHARS = 60_000; // keeps the prompt comfortably within context limits
@@ -97,30 +101,42 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
 
   const parsed = parseChatBody(req.body);
   if ("error" in parsed) { res.status(400).json({ error: parsed.error }); return; }
-  const { message, history = [], noteId } = parsed.data;
+  const { message, history = [], noteId, allowGeneral } = parsed.data;
 
   const notesContext = await buildNotesContext(req.user.id, noteId);
-  if (!notesContext && !noteId) {
+  if (!notesContext && !noteId && !allowGeneral) {
     res.json({
       reply: "You don't have any notes yet, so I don't have anything to answer from. Create a note first, then ask me about it.",
     });
     return;
   }
 
-  const systemPrompt = [
-    "You are a helpful assistant embedded in a personal notes app called Folio.",
-    "You can do two kinds of things: (1) answer questions using ONLY the notes provided below, and",
-    "(2) when asked, DRAFT new content the user wants added to a note (a summary, a list, a rewrite, etc).",
-    "If the user asks a factual question and the answer isn't in the notes, say so plainly instead of guessing.",
-    "If the user asks you to write/add/draft something, just write the requested content directly and",
-    "concisely — the user will choose whether to insert it into their note, so don't add meta-commentary",
-    "like \"Here's a draft\" unless it's helpful context.",
-    "Be concise and reference the relevant note title(s) when useful for Q&A.",
-    "",
-    "=== USER'S NOTES ===",
-    notesContext || "(this note is currently empty)",
-    "=== END OF NOTES ===",
-  ].join("\n");
+  const NO_ANSWER_MARKER = "NOTES_NO_ANSWER";
+
+  const systemPrompt = allowGeneral
+    ? [
+        "You are a helpful, knowledgeable general-purpose assistant embedded in a personal notes app called Folio.",
+        "Answer the user's question using your own general knowledge. Be concise and accurate.",
+        "You may also use the following notes as extra context if relevant, but you are not limited to them.",
+        "",
+        "=== USER'S NOTES (optional context) ===",
+        notesContext || "(none)",
+        "=== END OF NOTES ===",
+      ].join("\n")
+    : [
+        "You are a helpful assistant embedded in a personal notes app called Folio.",
+        "You can do two kinds of things: (1) answer questions using ONLY the notes provided below, and",
+        "(2) when asked, DRAFT new content the user wants added to a note (a summary, a list, a rewrite, etc).",
+        `If the user asks a factual question and the answer is NOT in the notes, respond with EXACTLY the single word ${NO_ANSWER_MARKER} and nothing else — no punctuation, no explanation.`,
+        "If the user asks you to write/add/draft something, just write the requested content directly and",
+        "concisely — the user will choose whether to insert it into their note, so don't add meta-commentary",
+        "like \"Here's a draft\" unless it's helpful context.",
+        "Be concise and reference the relevant note title(s) when useful for Q&A.",
+        "",
+        "=== USER'S NOTES ===",
+        notesContext || "(this note is currently empty)",
+        "=== END OF NOTES ===",
+      ].join("\n");
 
   // Gemini uses "model" as the role name for prior assistant turns (not "assistant").
   const geminiHistory = history.map((h) => ({
@@ -162,6 +178,14 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
     .filter((text): text is string => Boolean(text))
     .join("\n")
     .trim() || "I couldn't generate a response. Please try again.";
+
+  if (!allowGeneral && reply.trim() === NO_ANSWER_MARKER) {
+    res.json({
+      reply: "I couldn't find an answer to that in your notes.",
+      noAnswerInNotes: true,
+    });
+    return;
+  }
 
   res.json({ reply });
 });

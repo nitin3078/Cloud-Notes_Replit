@@ -402,6 +402,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
+                                  {...(!isDragDisabled ? provided.dragHandleProps : {})}
                                   onClick={() => onOpenNote(note)}
                                   className={`relative group flex flex-col p-3 rounded-md cursor-pointer transition-colors border ${
                                     activeTabId === note.id
@@ -415,10 +416,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                                   <div className="flex items-start justify-between gap-2">
                                     <div className="font-medium text-sm truncate flex-1 leading-tight text-foreground flex items-center gap-1.5 -ml-1">
                                       {!isDragDisabled && (
-                                        <div
-                                          className="opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-muted-foreground transition-opacity cursor-grab active:cursor-grabbing"
-                                          {...provided.dragHandleProps}
-                                        >
+                                        <div className="opacity-0 group-hover:opacity-100 text-muted-foreground/50 transition-opacity pointer-events-none">
                                           <GripVertical size={14} />
                                         </div>
                                       )}

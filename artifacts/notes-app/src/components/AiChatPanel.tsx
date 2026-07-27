@@ -8,6 +8,11 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   insertedIntoNote?: boolean;
+  /** True when this reply means "not found in your notes" — shows the "search generally?" prompt. */
+  noAnswerInNotes?: boolean;
+  /** The user's question this reply is answering, needed to resend with allowGeneral. */
+  answeringQuestion?: string;
+  askedGenerally?: boolean;
 }
 
 interface AiChatPanelProps {
@@ -41,13 +46,17 @@ export default function AiChatPanel({ onClose, noteId }: AiChatPanelProps) {
     };
   }, []);
 
-  const send = async (textOverride?: string) => {
+  const send = async (textOverride?: string, allowGeneral = false) => {
     const text = (textOverride ?? input).trim();
     if (!text || isSending) return;
 
-    const nextMessages: ChatMessage[] = [...messages, { id: crypto.randomUUID(), role: 'user', content: text }];
+    // When resending the same question with allowGeneral=true, don't add a
+    // duplicate user bubble — the original question is already shown.
+    const nextMessages: ChatMessage[] = allowGeneral
+      ? messages
+      : [...messages, { id: crypto.randomUUID(), role: 'user', content: text }];
     setMessages(nextMessages);
-    setInput('');
+    if (!allowGeneral) setInput('');
     setError(null);
     setIsSending(true);
 
@@ -61,6 +70,7 @@ export default function AiChatPanel({ onClose, noteId }: AiChatPanelProps) {
           // Send prior turns so the assistant has conversational context.
           history: nextMessages.slice(0, -1).slice(-10).map(({ role, content }) => ({ role, content })),
           noteId: noteId ?? undefined,
+          allowGeneral,
         }),
       });
 
@@ -70,7 +80,14 @@ export default function AiChatPanel({ onClose, noteId }: AiChatPanelProps) {
       }
 
       const data = await res.json();
-      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: data.reply }]);
+      setMessages((prev) => [...prev, {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: data.reply,
+        noAnswerInNotes: !!data.noAnswerInNotes,
+        answeringQuestion: text,
+        askedGenerally: allowGeneral,
+      }]);
     } catch (err: any) {
       setError(err?.message || 'Something went wrong. Please try again.');
     } finally {
@@ -182,7 +199,17 @@ export default function AiChatPanel({ onClose, noteId }: AiChatPanelProps) {
             >
               {m.content}
             </div>
-            {m.role === 'assistant' && noteId && (
+            {m.role === 'assistant' && m.noAnswerInNotes && (
+              <button
+                type="button"
+                onClick={() => send(m.answeringQuestion, true)}
+                disabled={isSending}
+                className="mt-1.5 text-xs text-primary hover:underline disabled:opacity-50"
+              >
+                Search generally instead?
+              </button>
+            )}
+            {m.role === 'assistant' && !m.noAnswerInNotes && noteId && (
               m.insertedIntoNote ? (
                 <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                   <Check size={12} className="text-primary" /> Added to note

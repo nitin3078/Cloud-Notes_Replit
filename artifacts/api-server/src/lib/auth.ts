@@ -14,6 +14,8 @@ export interface SessionData {
   access_token: string;
   refresh_token?: string;
   expires_at?: number;
+  /** Distinguishes a session created via email/password from one created via Replit OIDC. */
+  provider?: 'local' | 'replit';
 }
 
 let oidcConfig: client.Configuration | null = null;

@@ -422,8 +422,8 @@ export default function Editor({ noteId, onOpenHistory, onOpenChat }: EditorProp
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto w-full relative">
-        <div className={`max-w-[800px] mx-auto my-6 px-12 py-16 ${note?.noteStyle && note.noteStyle !== DEFAULT_NOTE_STYLE ? `note-style-${note.noteStyle}` : ''}`}>
+      <div className={`flex-1 overflow-y-auto w-full relative ${note?.noteStyle && note.noteStyle !== DEFAULT_NOTE_STYLE ? `note-style-${note.noteStyle}` : ''}`}>
+        <div className={note?.noteStyle && note.noteStyle !== DEFAULT_NOTE_STYLE ? 'w-full min-h-full px-12 py-16' : 'max-w-[800px] mx-auto my-6 px-12 py-16'}>
           <input
             type="text"
             value={title}
