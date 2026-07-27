@@ -60,15 +60,24 @@ export default function Editor({ noteId, onOpenHistory, onOpenChat }: EditorProp
   const isNoteUnlocked = !note?.isLocked || unlockedNoteIds.has(noteId);
 
   useEffect(() => {
-    if (note && initializedForId.current !== note.id) {
+    if (!note) return;
+    if (initializedForId.current !== note.id) {
       initializedForId.current = note.id;
       setTitle(note.title || '');
       setContent(note.content || '');
       lastSaved.current = { title: note.title || '', content: note.content || '' };
       setHasUnsavedChanges(false);
       setIsSaving(false);
+      return;
     }
-  }, [note, noteId]);
+    // Already initialized for this note — pick up content changes that came from
+    // outside this editor (e.g. the AI panel inserting text into the note),
+    // but only if there's no unsaved local edit that would get overwritten.
+    if (!hasUnsavedChanges && !isSaving && note.content !== lastSaved.current.content) {
+      setContent(note.content || '');
+      lastSaved.current = { ...lastSaved.current, content: note.content || '' };
+    }
+  }, [note, noteId, hasUnsavedChanges, isSaving]);
 
   // Enable spellcheck on Quill's contenteditable
   useEffect(() => {
@@ -400,14 +409,7 @@ export default function Editor({ noteId, onOpenHistory, onOpenChat }: EditorProp
             </PopoverContent>
           </Popover>
 
-          {/* Ask AI about this note */}
-          <button
-            title="Ask AI about this note"
-            onClick={() => onOpenChat(noteId)}
-            className="p-1.5 rounded transition-colors text-foreground/70 hover:text-foreground hover:bg-muted"
-          >
-            <Sparkles size={16} />
-          </button>
+          {/* Ask AI about this note lives as a floating widget now — see below, not in the toolbar */}
 
           <div className="w-px h-6 bg-border" />
 
@@ -452,6 +454,16 @@ export default function Editor({ noteId, onOpenHistory, onOpenChat }: EditorProp
           />
         </div>
       </div>
+
+      {/* Ask AI widget — floating, not in the toolbar */}
+      <button
+        title="Ask AI about this note"
+        onClick={() => onOpenChat(noteId)}
+        className="absolute bottom-6 right-6 z-30 flex items-center gap-2 pl-3 pr-4 py-3 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:bg-primary/90 transition-all"
+      >
+        <Sparkles size={18} />
+        <span className="text-sm font-medium">Ask AI</span>
+      </button>
 
       {/* Lock Modal */}
       <LockNoteModal

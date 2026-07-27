@@ -28,7 +28,6 @@ import {
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface SidebarProps {
   selectedFolderId: number | 'all' | 'trash' | 'pinned';
@@ -353,7 +352,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
       </div>
 
       {/* Note List */}
-      <div className="h-1/2 border-t border-border/50 flex flex-col bg-background/50">
+      <div className="h-[38%] shrink-0 border-t border-border/50 flex flex-col bg-background/50">
         <div className="px-4 py-3 flex items-center justify-between border-b border-border/30 bg-sidebar/50">
           <div className="font-semibold text-sm">
             {selectedFolderId === 'all' ? 'All Notes' :
@@ -392,18 +391,19 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                   <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
                     {displayNotes.map((note, index) => {
                       const isDragDisabled = selectedFolderId === 'trash' || sortBy === 'updatedAt';
+                      const previewText = note.content
+                        ? note.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || 'No content yet.'
+                        : 'No content yet.';
                       return (
                         <Draggable key={note.id} draggableId={note.id.toString()} index={index} isDragDisabled={isDragDisabled}>
                           {(provided, snapshot) => (
                             <ContextMenu>
-                              <Tooltip delayDuration={500}>
                               <ContextMenuTrigger asChild>
-                              <TooltipTrigger asChild>
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   onClick={() => onOpenNote(note)}
-                                  className={`group flex flex-col p-3 rounded-md cursor-pointer transition-colors border ${
+                                  className={`relative group flex flex-col p-3 rounded-md cursor-pointer transition-colors border ${
                                     activeTabId === note.id
                                       ? 'bg-card border-primary/20 shadow-sm'
                                       : snapshot.isDragging
@@ -433,20 +433,18 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                                   <div className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed opacity-70 pl-5">
                                     {note.content ? note.content.replace(/<[^>]+>/g, '').substring(0, 80) : 'No content...'}
                                   </div>
+
+                                  {/* Hover preview — plain CSS, no JS pointer listeners, so it can't
+                                      interfere with @hello-pangea/dnd's own pointer-based drag sensor
+                                      the way a Radix Tooltip (which dismisses on pointerdown) can. */}
+                                  {!snapshot.isDragging && (
+                                    <div className="hidden group-hover:block absolute left-full top-0 ml-2 z-50 w-64 max-h-64 overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md px-3 py-2 pointer-events-none">
+                                      <p className="font-semibold font-serif mb-1 text-sm">{note.title || 'Untitled Note'}</p>
+                                      <p className="text-xs leading-relaxed whitespace-pre-wrap">{previewText}</p>
+                                    </div>
+                                  )}
                                 </div>
-                              </TooltipTrigger>
                               </ContextMenuTrigger>
-                              <TooltipContent
-                                side="right"
-                                align="start"
-                                className="max-w-xs max-h-64 overflow-y-auto bg-popover text-popover-foreground border border-border shadow-md px-3 py-2 whitespace-pre-wrap text-xs leading-relaxed"
-                              >
-                                <p className="font-semibold font-serif mb-1 text-sm">{note.title || 'Untitled Note'}</p>
-                                {note.content
-                                  ? note.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || 'No content yet.'
-                                  : 'No content yet.'}
-                              </TooltipContent>
-                              </Tooltip>
 
                               <ContextMenuContent className="w-52">
                                 {note.isDeleted ? (
