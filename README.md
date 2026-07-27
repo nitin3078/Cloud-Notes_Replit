@@ -1,15 +1,18 @@
 # Folio
 
-A personal, cloud-synced note-taking app: create and organize notes in folders, lock individual notes with a password, switch between color themes, use voice-to-text while writing, and ask an AI assistant questions grounded in your own notes.
+A personal, cloud-synced note-taking app: create and organize notes in folders, lock individual notes with a password, use voice-to-text while writing, skin your notes and your whole app with different looks, drag notes between folders, and ask an AI assistant to answer questions from your notes — or write directly into them.
 
 ## Features
 
-- **Notes & folders** — create, edit, and organize notes into folders
+- **Notes & folders** — create, edit, and organize notes into folders; drag and drop a note from the sidebar onto any folder to move it there
 - **Version history** — restore or copy earlier versions of a note
 - **Password-protected notes** — lock individual notes with bcrypt-hashed passwords
 - **Voice-to-text** — dictate note content via the Web Speech API
-- **Theming** — six built-in color palettes (parchment, midnight, ocean, forest, rose, slate), persisted per browser
-- **Ask your notes** — a chat panel that answers questions using only the content of your own notes as context, powered by the Gemini API free tier
+- **App theming** — six built-in color palettes (parchment, midnight, ocean, forest, rose, slate), plus a **Custom** theme with your own background/accent/text colors, persisted per browser
+- **Per-note styles** — give an individual note its own look, independent of the app theme: Default, PDF Page, Notebook, Chalkboard, Kraft Card, or Terminal
+- **Note previews** — hover any note in the sidebar for a scrollable preview of its content
+- **Ask your notes** — a chat panel (global or scoped to a single open note) that answers questions using only your own notes as context, powered by the Gemini API free tier
+- **AI writing** — ask the assistant to draft, summarize, or rewrite something for a note, review its answer, then click "Insert into note" to add it — every AI-written addition is signed with a timestamp so it's always clear what the AI wrote versus what you wrote
 
 ## Stack
 
@@ -61,6 +64,26 @@ pnpm --filter @workspace/api-spec run codegen
 - `lib/db` — Drizzle schema and DB client
 - `lib/api-spec` / `lib/api-client-react` / `lib/api-zod` — OpenAPI spec and generated client code
 - `lib/replit-auth-web` — auth integration
+
+## Development history
+
+Roughly in the order each piece was built:
+
+1. **Note creation bug fix** — creating a note silently failed. Root cause: an un-transacted insert into the note-versions table could fail after the note itself was already created, with no error handling anywhere in the stack to surface it. Fixed by wrapping the write in a database transaction and adding a global API error handler plus frontend error toasts, so failures are now visible instead of silent.
+2. **App-wide theming (first pass)** — six built-in color palettes (parchment, midnight, ocean, forest, rose, slate) with a swatch-picker dropdown, persisted to the browser.
+3. **"Ask your notes" AI chat** — a chat panel backed by a new `/api/ai/chat` route that reads the user's own notes as context before answering.
+4. **AI provider switched to Gemini** — originally built against the Anthropic API; switched to Google Gemini's free tier so the AI feature doesn't require a paid API key.
+5. **`sortOrder` overflow bug fix** — note creation crashed under the new theming/AI code because `sortOrder` was seeded with a millisecond timestamp that overflowed Postgres's 32-bit `integer` column. Changed the column to `bigint`.
+6. **Per-note visual styles** — added a `noteStyle` field (Default, PDF Page, Notebook, Chalkboard, Kraft Card, Terminal) selectable at note creation or anytime from the editor toolbar, independent of the app-wide theme.
+7. **Custom app theme** — extended the theme switcher with a "Custom" option and three color pickers (background, accent, text) that derive a full coordinated palette.
+8. **Per-note AI chat** — the "Ask AI" action is now available from inside any open note, scoped to just that note's content, not just the whole library.
+9. **AI writing into notes** — the assistant can now draft content on request; the person reviews it in the chat panel and explicitly clicks "Insert into note" before anything is written — nothing is added automatically. Inserted text is signed with a timestamp.
+10. **Cross-folder drag-and-drop** — notes in the sidebar can be dragged directly onto a folder (or "All Notes") to move them, in addition to the existing right-click "Move to..." menu.
+11. **Note preview tooltips** — hovering a note in the sidebar shows a scrollable preview of its full content, plus a clearer hover highlight.
+
+## Built by
+
+This app was built collaboratively: the person who owns this repo (GitHub: nitin3078) directed requirements, tested changes live on Replit, and made product decisions (theme options, AI provider choice, feature priorities). The code — diagnosis, implementation, and this README — was written by Claude (Anthropic), working from that direction and pushing changes to this repo on request.
 
 ## Deployment
 
