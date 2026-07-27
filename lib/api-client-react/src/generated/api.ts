@@ -38,8 +38,11 @@ import type {
   MoveNoteInput,
   Note,
   NoteInput,
+  NoteLockInput,
+  NotePasswordInput,
   NotePatch,
   NoteVersion,
+  PasswordVerifyResult,
   ReorderInput
 } from './api.schemas';
 
@@ -1637,6 +1640,221 @@ export const useUnpinNote = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUnpinNoteMutationOptions(options));
+    }
+
+export const getSetNotePasswordUrl = (id: number,) => {
+
+
+
+
+  return `/api/notes/${id}/lock`
+}
+
+/**
+ * @summary Set a password to lock a note
+ */
+export const setNotePassword = async (id: number,
+    noteLockInput: NoteLockInput, options?: RequestInit): Promise<Note> => {
+
+  return customFetch<Note>(getSetNotePasswordUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(noteLockInput)
+  }
+);}
+
+
+
+
+
+export const getSetNotePasswordMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setNotePassword>>, TError,{id: number;data: BodyType<NoteLockInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setNotePassword>>, TError,{id: number;data: BodyType<NoteLockInput>}, TContext> => {
+
+const mutationKey = ['setNotePassword'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setNotePassword>>, {id: number;data: BodyType<NoteLockInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setNotePassword(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetNotePasswordMutationResult = NonNullable<Awaited<ReturnType<typeof setNotePassword>>>
+    export type SetNotePasswordMutationBody = BodyType<NoteLockInput>
+    export type SetNotePasswordMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Set a password to lock a note
+ */
+export const useSetNotePassword = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setNotePassword>>, TError,{id: number;data: BodyType<NoteLockInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setNotePassword>>,
+        TError,
+        {id: number;data: BodyType<NoteLockInput>},
+        TContext
+      > => {
+      return useMutation(getSetNotePasswordMutationOptions(options));
+    }
+
+export const getRemoveNotePasswordUrl = (id: number,) => {
+
+
+
+
+  return `/api/notes/${id}/lock`
+}
+
+/**
+ * @summary Remove the password from a note
+ */
+export const removeNotePassword = async (id: number, options?: RequestInit): Promise<Note> => {
+
+  return customFetch<Note>(getRemoveNotePasswordUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveNotePasswordMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeNotePassword>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeNotePassword>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['removeNotePassword'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeNotePassword>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  removeNotePassword(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveNotePasswordMutationResult = NonNullable<Awaited<ReturnType<typeof removeNotePassword>>>
+
+    export type RemoveNotePasswordMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Remove the password from a note
+ */
+export const useRemoveNotePassword = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeNotePassword>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeNotePassword>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getRemoveNotePasswordMutationOptions(options));
+    }
+
+export const getVerifyNotePasswordUrl = (id: number,) => {
+
+
+
+
+  return `/api/notes/${id}/verify-password`
+}
+
+/**
+ * @summary Verify the password for a locked note
+ */
+export const verifyNotePassword = async (id: number,
+    notePasswordInput: NotePasswordInput, options?: RequestInit): Promise<PasswordVerifyResult> => {
+
+  return customFetch<PasswordVerifyResult>(getVerifyNotePasswordUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(notePasswordInput)
+  }
+);}
+
+
+
+
+
+export const getVerifyNotePasswordMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyNotePassword>>, TError,{id: number;data: BodyType<NotePasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyNotePassword>>, TError,{id: number;data: BodyType<NotePasswordInput>}, TContext> => {
+
+const mutationKey = ['verifyNotePassword'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyNotePassword>>, {id: number;data: BodyType<NotePasswordInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  verifyNotePassword(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyNotePasswordMutationResult = NonNullable<Awaited<ReturnType<typeof verifyNotePassword>>>
+    export type VerifyNotePasswordMutationBody = BodyType<NotePasswordInput>
+    export type VerifyNotePasswordMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Verify the password for a locked note
+ */
+export const useVerifyNotePassword = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyNotePassword>>, TError,{id: number;data: BodyType<NotePasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyNotePassword>>,
+        TError,
+        {id: number;data: BodyType<NotePasswordInput>},
+        TContext
+      > => {
+      return useMutation(getVerifyNotePasswordMutationOptions(options));
     }
 
 export const getMoveNoteUrl = (id: number,) => {

@@ -87,6 +87,9 @@ export interface Note {
   folderId?: number | null;
   isPinned: boolean;
   isDeleted: boolean;
+  isLocked: boolean;
+  /** @nullable */
+  color?: string | null;
   /** @nullable */
   deletedAt?: string | null;
   sortOrder: number;
@@ -100,6 +103,8 @@ export interface NoteInput {
   content?: string;
   /** @nullable */
   folderId?: number | null;
+  /** @nullable */
+  color?: string | null;
   sortOrder?: number;
 }
 
@@ -109,6 +114,8 @@ export interface NotePatch {
   content?: string;
   /** @nullable */
   folderId?: number | null;
+  /** @nullable */
+  color?: string | null;
   isPinned?: boolean;
   sortOrder?: number;
 }
@@ -132,6 +139,20 @@ export interface NoteVersion {
   noteId: number;
   content: string;
   createdAt: string;
+}
+
+export interface NoteLockInput {
+  /** @minLength 1 */
+  password: string;
+}
+
+export interface NotePasswordInput {
+  /** @minLength 1 */
+  password: string;
+}
+
+export interface PasswordVerifyResult {
+  valid: boolean;
 }
 
 export interface AppStats {

@@ -5,42 +5,70 @@ import Sidebar from '../components/Sidebar';
 import TabBar from '../components/TabBar';
 import Editor from '../components/Editor';
 import VersionHistory from '../components/VersionHistory';
+import CreateNoteModal from '../components/CreateNoteModal';
 import Login from './Login';
 import { Edit3 } from 'lucide-react';
+import { Note, useListFolders } from '@workspace/api-client-react';
 
 function HomeContent() {
   const { user, logout } = useAuth();
   const [selectedFolderId, setSelectedFolderId] = useState<number | 'all' | 'trash' | 'pinned'>('all');
   const [showHistoryForNoteId, setShowHistoryForNoteId] = useState<number | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createModalDefaultFolderId, setCreateModalDefaultFolderId] = useState<number | null>(null);
 
-  const { activeTabId, openTab } = useTabs();
+  const { activeTabId, openTab, unlockedNoteIds } = useTabs();
+  const { data: folders = [] } = useListFolders();
+
+  const handleOpenNote = (note: Note) => {
+    // If the note is locked and not yet unlocked in this session, open it anyway
+    // (Editor will show the lock screen and handle unlock)
+    openTab(note.id);
+  };
+
+  const handleCreateNote = (defaultFolderId?: number | null) => {
+    setCreateModalDefaultFolderId(defaultFolderId ?? null);
+    setCreateModalOpen(true);
+  };
 
   return (
     <div className="flex h-[100dvh] w-full overflow-hidden bg-background">
-      <Sidebar 
-        selectedFolderId={selectedFolderId} 
+      <Sidebar
+        selectedFolderId={selectedFolderId}
         onSelectFolder={setSelectedFolderId}
+        onOpenNote={handleOpenNote}
+        onCreateNote={handleCreateNote}
         user={user}
         onLogout={logout}
       />
-      
+
       <div className="flex-1 flex flex-col min-w-0 relative bg-background/50">
-        <TabBar selectedFolderId={selectedFolderId} />
-        
+        <TabBar
+          selectedFolderId={selectedFolderId}
+          onCreateNote={handleCreateNote}
+        />
+
         {activeTabId ? (
-          <Editor 
-            key={activeTabId} // Force remount if tab changes, wait actually Editor handles id changes itself, so no need for key to prevent flickering. But wait, `react-quill` sometimes prefers remounting. Let's keep it without key for smoother transitions.
-            noteId={activeTabId} 
-            onOpenHistory={() => setShowHistoryForNoteId(activeTabId)} 
+          <Editor
+            key={activeTabId}
+            noteId={activeTabId}
+            onOpenHistory={() => setShowHistoryForNoteId(activeTabId)}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-700">
             <div className="w-24 h-24 mb-6 rounded-full bg-sidebar flex items-center justify-center border border-border shadow-inner">
-               <Edit3 className="w-10 h-10 text-muted-foreground/50" strokeWidth={1.5} />
+              <Edit3 className="w-10 h-10 text-muted-foreground/50" strokeWidth={1.5} />
             </div>
             <h2 className="text-3xl font-serif text-foreground font-medium mb-3">Your blank page awaits</h2>
             <p className="text-muted-foreground font-serif italic max-w-sm leading-relaxed">
-              Select a note from the sidebar to start writing, or click the + to create a new one.
+              Select a note to start writing, or click{' '}
+              <button
+                onClick={() => handleCreateNote(null)}
+                className="text-primary hover:underline font-medium not-italic"
+              >
+                + New Note
+              </button>
+              .
             </p>
           </div>
         )}
@@ -48,22 +76,33 @@ function HomeContent() {
         {/* Version History Panel */}
         {showHistoryForNoteId && (
           <div className="absolute top-0 right-0 bottom-0 z-50 flex">
-            {/* Backdrop */}
-            <div 
+            <div
               className="fixed inset-0 bg-foreground/5 backdrop-blur-[1px] animate-in fade-in duration-300"
               onClick={() => setShowHistoryForNoteId(null)}
             />
-            <VersionHistory 
-              noteId={showHistoryForNoteId} 
-              onClose={() => setShowHistoryForNoteId(null)} 
+            <VersionHistory
+              noteId={showHistoryForNoteId}
+              onClose={() => setShowHistoryForNoteId(null)}
               onRestored={(newId) => {
-                 setShowHistoryForNoteId(null);
-                 openTab(newId);
+                setShowHistoryForNoteId(null);
+                openTab(newId);
               }}
             />
           </div>
         )}
       </div>
+
+      {/* Create Note Modal */}
+      <CreateNoteModal
+        open={createModalOpen}
+        onOpenChange={setCreateModalOpen}
+        folders={folders}
+        defaultFolderId={createModalDefaultFolderId}
+        onCreated={(noteId) => {
+          openTab(noteId);
+          setCreateModalOpen(false);
+        }}
+      />
     </div>
   );
 }

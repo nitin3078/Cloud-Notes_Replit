@@ -12,5 +12,7 @@ export interface NoteInput {
   content?: string;
   /** @nullable */
   folderId?: number | null;
+  /** @nullable */
+  color?: string | null;
   sortOrder?: number;
 }

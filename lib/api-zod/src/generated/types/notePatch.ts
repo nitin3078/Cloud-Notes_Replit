@@ -12,6 +12,8 @@ export interface NotePatch {
   content?: string;
   /** @nullable */
   folderId?: number | null;
+  /** @nullable */
+  color?: string | null;
   isPinned?: boolean;
   sortOrder?: number;
 }

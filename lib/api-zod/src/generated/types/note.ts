@@ -15,6 +15,9 @@ export interface Note {
   folderId?: number | null;
   isPinned: boolean;
   isDeleted: boolean;
+  isLocked: boolean;
+  /** @nullable */
+  color?: string | null;
   /** @nullable */
   deletedAt?: Date | null;
   sortOrder: number;

@@ -1,69 +1,80 @@
 import React, { useState } from 'react';
-import { 
-  Folder as FolderIcon, ChevronRight, ChevronDown, Plus, 
-  MoreVertical, FileText, Pin, PinOff, Trash2, ArrowRight,
-  GripVertical
+import {
+  Folder as FolderIcon, ChevronRight, ChevronDown, Plus,
+  FileText, Pin, PinOff, Trash2, ArrowRight, GripVertical,
+  FolderPlus, RotateCcw, Flame
 } from 'lucide-react';
-import { 
+import {
   Folder, Note,
-  useListFolders, useCreateFolder, 
+  useListFolders, useCreateFolder, useUpdateFolder, useDeleteFolder,
   useListNotes, useCreateNote,
   useUpdateNote, useMoveNote, useDeleteNote,
   usePinNote, useUnpinNote, useReorderNotes,
-  useRestoreNote, usePurgeNote
+  useRestoreNote, usePurgeNote,
+  getListNotesQueryKey,
 } from '@workspace/api-client-react';
 import { useTabs } from '../lib/TabContext';
-import { getListNotesQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { NOTE_COLORS } from '../lib/noteColors';
+import ColorPicker from './ColorPicker';
 
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
-  ContextMenuTrigger,
+  ContextMenu, ContextMenuContent, ContextMenuItem,
+  ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent,
+  ContextMenuSubTrigger, ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from '@/components/ui/popover';
 
 interface SidebarProps {
   selectedFolderId: number | 'all' | 'trash' | 'pinned';
   onSelectFolder: (id: number | 'all' | 'trash' | 'pinned') => void;
+  onOpenNote: (note: Note) => void;
+  onCreateNote: (defaultFolderId?: number | null) => void;
   user: any;
   onLogout: () => void;
 }
 
-export default function Sidebar({ selectedFolderId, onSelectFolder, user, onLogout }: SidebarProps) {
+function ColorDot({ color }: { color?: string | null }) {
+  if (!color) return null;
+  return <span className="w-2 h-2 rounded-full shrink-0 inline-block" style={{ backgroundColor: color }} />;
+}
+
+export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, onCreateNote, user, onLogout }: SidebarProps) {
   const queryClient = useQueryClient();
-  const { openTab, activeTabId } = useTabs();
-  
+  const { activeTabId } = useTabs();
+
   const { data: folders = [] } = useListFolders();
-  const { data: notes = [] } = useListNotes({ 
+  const { data: notes = [] } = useListNotes({
     folderId: typeof selectedFolderId === 'number' ? selectedFolderId : undefined,
     deleted: selectedFolderId === 'trash' ? true : undefined,
   });
-
-  const { data: allNotes = [] } = useListNotes(); // Need all notes for Pinned section
+  const { data: allNotes = [] } = useListNotes();
 
   const [sortBy, setSortBy] = useState<'manual' | 'updatedAt'>('manual');
+  const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
+  const [renamingFolderId, setRenamingFolderId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [colorPickerNoteId, setColorPickerNoteId] = useState<number | null>(null);
 
-  const pinnedNotes = allNotes.filter(n => n.isPinned && !n.isDeleted).sort((a, b) => 
+  const pinnedNotes = allNotes.filter(n => n.isPinned && !n.isDeleted).sort((a, b) =>
     sortBy === 'manual' ? a.sortOrder - b.sortOrder : new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   );
-  const activeNotes = notes.filter(n => !n.isDeleted).sort((a, b) => 
+  const activeNotes = notes.filter(n => !n.isDeleted).sort((a, b) =>
     sortBy === 'manual' ? a.sortOrder - b.sortOrder : new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   );
-  const trashedNotes = notes.filter(n => n.isDeleted).sort((a, b) => 
+  const trashedNotes = notes.filter(n => n.isDeleted).sort((a, b) =>
     new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   );
-
-  const displayNotes = selectedFolderId === 'trash' ? trashedNotes : 
-                       selectedFolderId === 'pinned' ? pinnedNotes : activeNotes;
+  const displayNotes = selectedFolderId === 'trash' ? trashedNotes :
+    selectedFolderId === 'pinned' ? pinnedNotes : activeNotes;
 
   const createFolder = useCreateFolder();
-  const createNote = useCreateNote();
+  const updateFolder = useUpdateFolder();
+  const deleteFolder = useDeleteFolder();
+  const updateNote = useUpdateNote();
   const deleteNote = useDeleteNote();
   const pinNote = usePinNote();
   const unpinNote = useUnpinNote();
@@ -72,58 +83,69 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, user, onLogo
   const restoreNote = useRestoreNote();
   const purgeNote = usePurgeNote();
 
-  const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
+  const invalidateNotes = () => queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
+  const invalidateFolders = () => queryClient.invalidateQueries({ queryKey: ['/api/folders'] });
 
   const toggleFolder = (id: number) => {
     setExpandedFolders(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };
 
-  const handleCreateFolder = () => {
-    const name = prompt('Folder name:');
-    if (name) {
-      createFolder.mutate({ data: { name } }, {
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/folders'] })
+  const handleCreateFolder = (parentFolderId?: number) => {
+    const name = prompt(parentFolderId ? 'Subfolder name:' : 'Folder name:');
+    if (name?.trim()) {
+      createFolder.mutate({ data: { name: name.trim(), parentFolderId: parentFolderId ?? null } }, {
+        onSuccess: () => {
+          invalidateFolders();
+          if (parentFolderId) {
+            setExpandedFolders(prev => new Set([...prev, parentFolderId]));
+          }
+        }
       });
     }
   };
 
-  const handleCreateNote = () => {
-    const folderId = typeof selectedFolderId === 'number' ? selectedFolderId : null;
-    createNote.mutate({ data: { title: 'Untitled Note', content: '', folderId } }, {
-      onSuccess: (newNote) => {
-        queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
-        openTab(newNote.id);
-      }
-    });
+  const startRename = (folder: Folder) => {
+    setRenamingFolderId(folder.id);
+    setRenameValue(folder.name);
+  };
+
+  const submitRename = (folderId: number) => {
+    if (renameValue.trim()) {
+      updateFolder.mutate({ id: folderId, data: { name: renameValue.trim() } }, {
+        onSuccess: invalidateFolders
+      });
+    }
+    setRenamingFolderId(null);
+  };
+
+  const handleDeleteFolder = (folderId: number) => {
+    if (confirm('Delete this folder? Notes inside will not be deleted.')) {
+      deleteFolder.mutate({ id: folderId }, { onSuccess: invalidateFolders });
+    }
   };
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
-    
     const sourceIndex = result.source.index;
     const destIndex = result.destination.index;
     if (sourceIndex === destIndex) return;
-
-    // reorder displayNotes
     const items = Array.from(displayNotes);
     const [reorderedItem] = items.splice(sourceIndex, 1);
     items.splice(destIndex, 0, reorderedItem);
-
-    // Update their sortOrder optimistically
     const newItems = items.map((item, index) => ({ id: item.id, sortOrder: index }));
-    
-    // We update local cache to prevent jumping
-    // (A real app would be more careful, but this is fine for UI feel)
-    
-    reorderNotes.mutate({ data: { items: newItems } }, {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() })
-    });
+    reorderNotes.mutate({ data: { items: newItems } }, { onSuccess: invalidateNotes });
   };
+
+  const handleSetColor = (noteId: number, color: string | null) => {
+    updateNote.mutate({ id: noteId, data: { color } }, { onSuccess: invalidateNotes });
+    setColorPickerNoteId(null);
+  };
+
+  const rootFolders = folders.filter(f => !f.parentFolderId);
 
   return (
     <div className="w-72 h-full bg-sidebar flex flex-col border-r border-border text-sidebar-foreground">
@@ -132,7 +154,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, user, onLogo
         <h1 className="font-serif text-2xl font-bold text-foreground tracking-tight">Folio</h1>
         <div className="relative group cursor-pointer" onClick={onLogout}>
           <div className="w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center font-bold text-sm shadow-sm ring-1 ring-border">
-            {user?.name?.[0]?.toUpperCase() || 'U'}
+            {(user?.firstName?.[0] || user?.email?.[0] || 'U').toUpperCase()}
           </div>
           <div className="absolute right-0 top-10 w-24 p-2 bg-popover text-popover-foreground shadow-md rounded border border-border opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none text-xs text-center z-50">
             Sign out
@@ -140,83 +162,112 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, user, onLogo
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-6">
-        
-        {/* Navigation Tree */}
+      <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-6 min-h-0">
+        {/* Navigation */}
         <div className="px-3 space-y-1">
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-2">Library</div>
-          
-          <button 
-            onClick={() => onSelectFolder('all')}
-            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${selectedFolderId === 'all' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'hover:bg-sidebar-accent/50'}`}
-          >
-            <FileText size={16} className="text-muted-foreground" />
-            All Notes
-          </button>
-          
-          <button 
-            onClick={() => onSelectFolder('pinned')}
-            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${selectedFolderId === 'pinned' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'hover:bg-sidebar-accent/50'}`}
-          >
-            <Pin size={16} className="text-muted-foreground" />
-            Pinned
-          </button>
-          
-          <button 
-            onClick={() => onSelectFolder('trash')}
-            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${selectedFolderId === 'trash' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'hover:bg-sidebar-accent/50'}`}
-          >
-            <Trash2 size={16} className="text-muted-foreground" />
-            Trash
-          </button>
+          {[
+            { id: 'all' as const, icon: FileText, label: 'All Notes' },
+            { id: 'pinned' as const, icon: Pin, label: 'Pinned' },
+            { id: 'trash' as const, icon: Trash2, label: 'Trash' },
+          ].map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => onSelectFolder(id)}
+              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${selectedFolderId === id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'hover:bg-sidebar-accent/50'}`}
+            >
+              <Icon size={16} className="text-muted-foreground" />
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* Folders */}
         <div className="px-3 space-y-1">
           <div className="flex items-center justify-between px-2 mb-2">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Folders</div>
-            <button onClick={handleCreateFolder} className="text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={() => handleCreateFolder()} className="text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded hover:bg-muted">
               <Plus size={14} />
             </button>
           </div>
-          
-          {folders.filter(f => !f.parentFolderId).map(folder => {
+
+          {rootFolders.map(folder => {
             const isExpanded = expandedFolders.has(folder.id);
             const subfolders = folders.filter(f => f.parentFolderId === folder.id);
-            
+
             return (
               <div key={folder.id}>
-                <div className="flex items-center">
-                  {subfolders.length > 0 ? (
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); toggleFolder(folder.id); }}
-                      className="p-1 -mr-1 text-muted-foreground hover:text-foreground z-10"
-                    >
-                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </button>
-                  ) : (
-                    <div className="w-5" />
-                  )}
-                  <button 
-                    onClick={() => onSelectFolder(folder.id)}
-                    className={`flex-1 flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${selectedFolderId === folder.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'hover:bg-sidebar-accent/50'}`}
-                  >
-                    <FolderIcon size={16} className="text-muted-foreground fill-current opacity-20" />
-                    <span className="flex-1 text-left truncate">{folder.name}</span>
-                  </button>
-                </div>
-                
+                <ContextMenu>
+                  <ContextMenuTrigger asChild>
+                    <div className="flex items-center">
+                      {subfolders.length > 0 ? (
+                        <button onClick={(e) => { e.stopPropagation(); toggleFolder(folder.id); }}
+                          className="p-1 -mr-1 text-muted-foreground hover:text-foreground z-10">
+                          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        </button>
+                      ) : <div className="w-5" />}
+
+                      {renamingFolderId === folder.id ? (
+                        <input
+                          autoFocus
+                          value={renameValue}
+                          onChange={e => setRenameValue(e.target.value)}
+                          onBlur={() => submitRename(folder.id)}
+                          onKeyDown={e => { if (e.key === 'Enter') submitRename(folder.id); if (e.key === 'Escape') setRenamingFolderId(null); }}
+                          className="flex-1 px-2 py-1 text-sm bg-background border border-primary rounded outline-none"
+                        />
+                      ) : (
+                        <button
+                          onClick={() => onSelectFolder(folder.id)}
+                          className={`flex-1 flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${selectedFolderId === folder.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'hover:bg-sidebar-accent/50'}`}
+                        >
+                          <FolderIcon size={16} className="text-muted-foreground fill-current opacity-20" />
+                          <span className="flex-1 text-left truncate">{folder.name}</span>
+                        </button>
+                      )}
+                    </div>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="w-48">
+                    <ContextMenuItem onClick={() => handleCreateFolder(folder.id)}>
+                      <FolderPlus size={14} className="mr-2" /> New Subfolder
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => onCreateNote(folder.id)}>
+                      <Plus size={14} className="mr-2" /> New Note Here
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem onClick={() => startRename(folder)}>
+                      Rename
+                    </ContextMenuItem>
+                    <ContextMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDeleteFolder(folder.id)}>
+                      <Trash2 size={14} className="mr-2" /> Delete Folder
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
+
                 {isExpanded && subfolders.length > 0 && (
                   <div className="ml-6 mt-1 space-y-1 border-l border-border/50 pl-2">
                     {subfolders.map(sub => (
-                      <button 
-                        key={sub.id}
-                        onClick={() => onSelectFolder(sub.id)}
-                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${selectedFolderId === sub.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'hover:bg-sidebar-accent/50'}`}
-                      >
-                        <FolderIcon size={14} className="text-muted-foreground fill-current opacity-20" />
-                        <span className="flex-1 text-left truncate">{sub.name}</span>
-                      </button>
+                      <ContextMenu key={sub.id}>
+                        <ContextMenuTrigger asChild>
+                          <button
+                            onClick={() => onSelectFolder(sub.id)}
+                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${selectedFolderId === sub.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'hover:bg-sidebar-accent/50'}`}
+                          >
+                            <FolderIcon size={14} className="text-muted-foreground fill-current opacity-20" />
+                            <span className="flex-1 text-left truncate">{sub.name}</span>
+                          </button>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent className="w-48">
+                          <ContextMenuItem onClick={() => onCreateNote(sub.id)}>
+                            <Plus size={14} className="mr-2" /> New Note Here
+                          </ContextMenuItem>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem onClick={() => startRename(sub)}>Rename</ContextMenuItem>
+                          <ContextMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDeleteFolder(sub.id)}>
+                            <Trash2 size={14} className="mr-2" /> Delete
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     ))}
                   </div>
                 )}
@@ -226,28 +277,27 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, user, onLogo
         </div>
       </div>
 
-      {/* Note List Section */}
+      {/* Note List */}
       <div className="h-1/2 border-t border-border/50 flex flex-col bg-background/50">
         <div className="px-4 py-3 flex items-center justify-between border-b border-border/30 bg-sidebar/50">
           <div className="font-semibold text-sm">
             {selectedFolderId === 'all' ? 'All Notes' :
-             selectedFolderId === 'pinned' ? 'Pinned' :
-             selectedFolderId === 'trash' ? 'Trash' :
-             folders.find(f => f.id === selectedFolderId)?.name || 'Notes'}
+              selectedFolderId === 'pinned' ? 'Pinned' :
+              selectedFolderId === 'trash' ? 'Trash' :
+              folders.find(f => f.id === selectedFolderId)?.name || 'Notes'}
           </div>
           <div className="flex items-center gap-1">
             {selectedFolderId !== 'trash' && selectedFolderId !== 'pinned' && (
-              <button 
+              <button
                 onClick={() => setSortBy(prev => prev === 'manual' ? 'updatedAt' : 'manual')}
                 className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-black/5 transition-colors mr-1"
-                title={`Sort: ${sortBy === 'manual' ? 'Manual' : 'Last Updated'}`}
               >
                 {sortBy === 'manual' ? 'Manual' : 'Recent'}
               </button>
             )}
             {selectedFolderId !== 'trash' && (
-              <button 
-                onClick={handleCreateNote}
+              <button
+                onClick={() => onCreateNote(typeof selectedFolderId === 'number' ? selectedFolderId : null)}
                 className="text-primary hover:text-primary-foreground hover:bg-primary p-1 rounded transition-colors"
               >
                 <Plus size={16} />
@@ -255,7 +305,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, user, onLogo
             )}
           </div>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto p-2">
           {displayNotes.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground italic font-serif">
@@ -266,92 +316,131 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, user, onLogo
               <Droppable droppableId="notes-list">
                 {(provided) => (
                   <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
-                    {displayNotes.map((note, index) => (
-                      <Draggable key={note.id} draggableId={note.id.toString()} index={index} isDragDisabled={selectedFolderId === 'trash' || selectedFolderId === 'all' || sortBy === 'updatedAt'}>
-                        {(provided, snapshot) => (
-                          <ContextMenu>
-                            <ContextMenuTrigger asChild>
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                onClick={() => openTab(note.id)}
-                                className={`group flex flex-col p-3 rounded-md cursor-pointer transition-all border ${
-                                  activeTabId === note.id 
-                                    ? 'bg-card border-primary/20 shadow-sm' 
-                                    : snapshot.isDragging ? 'bg-card shadow-lg border-primary/50' : 'bg-transparent border-transparent hover:bg-black/5 hover:border-border/50'
-                                }`}
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="font-medium text-sm truncate flex-1 leading-tight text-foreground flex items-center gap-1.5 -ml-1">
-                                    <div 
-                                      className={`opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-muted-foreground transition-opacity cursor-grab active:cursor-grabbing ${sortBy === 'updatedAt' || selectedFolderId === 'all' || selectedFolderId === 'trash' ? 'hidden' : ''}`}
-                                      {...provided.dragHandleProps}
-                                    >
-                                      <GripVertical size={14} />
+                    {displayNotes.map((note, index) => {
+                      const isDragDisabled = selectedFolderId === 'trash' || selectedFolderId === 'all' || sortBy === 'updatedAt';
+                      return (
+                        <Draggable key={note.id} draggableId={note.id.toString()} index={index} isDragDisabled={isDragDisabled}>
+                          {(provided, snapshot) => (
+                            <ContextMenu>
+                              <ContextMenuTrigger asChild>
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  onClick={() => onOpenNote(note)}
+                                  className={`group flex flex-col p-3 rounded-md cursor-pointer transition-all border ${
+                                    activeTabId === note.id
+                                      ? 'bg-card border-primary/20 shadow-sm'
+                                      : snapshot.isDragging
+                                      ? 'bg-card shadow-lg border-primary/50'
+                                      : 'bg-transparent border-transparent hover:bg-black/5 hover:border-border/50'
+                                  }`}
+                                  style={note.color ? { borderLeftColor: note.color, borderLeftWidth: '3px' } : {}}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="font-medium text-sm truncate flex-1 leading-tight text-foreground flex items-center gap-1.5 -ml-1">
+                                      {!isDragDisabled && (
+                                        <div
+                                          className="opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-muted-foreground transition-opacity cursor-grab active:cursor-grabbing"
+                                          {...provided.dragHandleProps}
+                                        >
+                                          <GripVertical size={14} />
+                                        </div>
+                                      )}
+                                      <ColorDot color={note.color} />
+                                      <span className={!isDragDisabled ? '' : 'ml-1'}>{note.title || 'Untitled Note'}</span>
                                     </div>
-                                    <span className={sortBy === 'updatedAt' || selectedFolderId === 'all' || selectedFolderId === 'trash' ? 'ml-1' : ''}>
-                                      {note.title || 'Untitled Note'}
-                                    </span>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      {note.isLocked && <span className="text-muted-foreground/60 text-xs">🔒</span>}
+                                      {note.isPinned && <Pin size={12} className="text-primary opacity-70" />}
+                                    </div>
                                   </div>
-                                  {note.isPinned && <Pin size={12} className="text-primary opacity-70 shrink-0" />}
+                                  <div className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed opacity-70 pl-5">
+                                    {note.content ? note.content.replace(/<[^>]+>/g, '').substring(0, 80) : 'No content...'}
+                                  </div>
                                 </div>
-                                <div className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed opacity-70 pl-5">
-                                  {note.content ? note.content.replace(/<[^>]+>/g, '').substring(0, 80) : 'No content...'}
-                                </div>
-                              </div>
-                            </ContextMenuTrigger>
-                            <ContextMenuContent className="w-48">
-                              {note.isDeleted ? (
-                                <>
-                                  <ContextMenuItem 
-                                    onClick={() => moveNote.mutate({ id: note.id, data: { folderId: note.folderId } }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() })})}
-                                  >
-                                    <ArrowRight size={16} className="mr-2" />
-                                    Restore Note
-                                  </ContextMenuItem>
-                                </>
-                              ) : (
-                                <>
-                                  <ContextMenuItem 
-                                    onClick={() => note.isPinned ? unpinNote.mutate({ id: note.id }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() })}) : pinNote.mutate({ id: note.id }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() })})}
-                                  >
-                                    {note.isPinned ? <PinOff size={16} className="mr-2" /> : <Pin size={16} className="mr-2" />}
-                                    {note.isPinned ? 'Unpin' : 'Pin Note'}
-                                  </ContextMenuItem>
-                                  
-                                  <ContextMenuSub>
-                                    <ContextMenuSubTrigger>
-                                      <ArrowRight size={16} className="mr-2" />
-                                      Move to...
-                                    </ContextMenuSubTrigger>
-                                    <ContextMenuSubContent className="w-48">
-                                      <ContextMenuItem onClick={() => moveNote.mutate({ id: note.id, data: { folderId: null } }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() })})}>
-                                        All Notes
-                                      </ContextMenuItem>
-                                      <ContextMenuSeparator />
-                                      {folders.map(f => (
-                                        <ContextMenuItem key={f.id} onClick={() => moveNote.mutate({ id: note.id, data: { folderId: f.id } }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() })})}>
-                                          {f.name}
+                              </ContextMenuTrigger>
+
+                              <ContextMenuContent className="w-52">
+                                {note.isDeleted ? (
+                                  <>
+                                    <ContextMenuItem onClick={() => restoreNote.mutate({ id: note.id }, { onSuccess: invalidateNotes })}>
+                                      <RotateCcw size={14} className="mr-2" /> Restore Note
+                                    </ContextMenuItem>
+                                    <ContextMenuSeparator />
+                                    <ContextMenuItem
+                                      className="text-destructive focus:text-destructive"
+                                      onClick={() => {
+                                        if (confirm('Permanently delete this note?')) {
+                                          purgeNote.mutate({ id: note.id }, { onSuccess: invalidateNotes });
+                                        }
+                                      }}
+                                    >
+                                      <Flame size={14} className="mr-2" /> Delete Forever
+                                    </ContextMenuItem>
+                                  </>
+                                ) : (
+                                  <>
+                                    <ContextMenuItem onClick={() => {
+                                      note.isPinned
+                                        ? unpinNote.mutate({ id: note.id }, { onSuccess: invalidateNotes })
+                                        : pinNote.mutate({ id: note.id }, { onSuccess: invalidateNotes });
+                                    }}>
+                                      {note.isPinned ? <><PinOff size={14} className="mr-2" /> Unpin</> : <><Pin size={14} className="mr-2" /> Pin Note</>}
+                                    </ContextMenuItem>
+
+                                    {/* Color submenu */}
+                                    <ContextMenuSub>
+                                      <ContextMenuSubTrigger>
+                                        <ColorDot color={note.color} />
+                                        <span className="ml-2">Set Color</span>
+                                      </ContextMenuSubTrigger>
+                                      <ContextMenuSubContent className="p-2 w-auto">
+                                        <div className="flex gap-1.5 flex-wrap max-w-[160px]">
+                                          {NOTE_COLORS.map(c => (
+                                            <button
+                                              key={c.value ?? 'none'}
+                                              title={c.label}
+                                              onClick={() => handleSetColor(note.id, c.value)}
+                                              className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 ${note.color === c.value ? 'border-foreground/60 scale-110' : 'border-transparent'}`}
+                                              style={{ backgroundColor: c.dot }}
+                                            />
+                                          ))}
+                                        </div>
+                                      </ContextMenuSubContent>
+                                    </ContextMenuSub>
+
+                                    <ContextMenuSub>
+                                      <ContextMenuSubTrigger>
+                                        <ArrowRight size={14} className="mr-2" /> Move to...
+                                      </ContextMenuSubTrigger>
+                                      <ContextMenuSubContent className="w-48">
+                                        <ContextMenuItem onClick={() => moveNote.mutate({ id: note.id, data: { folderId: null } }, { onSuccess: invalidateNotes })}>
+                                          All Notes
                                         </ContextMenuItem>
-                                      ))}
-                                    </ContextMenuSubContent>
-                                  </ContextMenuSub>
-                                </>
-                              )}
-                              
-                              <ContextMenuSeparator />
-                              <ContextMenuItem 
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => deleteNote.mutate({ id: note.id }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() })})}
-                              >
-                                <Trash2 size={16} className="mr-2" />
-                                Delete
-                              </ContextMenuItem>
-                            </ContextMenuContent>
-                          </ContextMenu>
-                        )}
-                      </Draggable>
-                    ))}
+                                        <ContextMenuSeparator />
+                                        {folders.map(f => (
+                                          <ContextMenuItem key={f.id} onClick={() => moveNote.mutate({ id: note.id, data: { folderId: f.id } }, { onSuccess: invalidateNotes })}>
+                                            {f.parentFolderId ? '  └ ' : ''}{f.name}
+                                          </ContextMenuItem>
+                                        ))}
+                                      </ContextMenuSubContent>
+                                    </ContextMenuSub>
+
+                                    <ContextMenuSeparator />
+                                    <ContextMenuItem
+                                      className="text-destructive focus:text-destructive"
+                                      onClick={() => deleteNote.mutate({ id: note.id }, { onSuccess: invalidateNotes })}
+                                    >
+                                      <Trash2 size={14} className="mr-2" /> Move to Trash
+                                    </ContextMenuItem>
+                                  </>
+                                )}
+                              </ContextMenuContent>
+                            </ContextMenu>
+                          )}
+                        </Draggable>
+                      );
+                    })}
                     {provided.placeholder}
                   </div>
                 )}

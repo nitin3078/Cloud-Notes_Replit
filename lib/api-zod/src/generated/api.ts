@@ -195,6 +195,8 @@ export const ListNotesResponseItem = zod.object({
   "folderId": zod.number().nullish(),
   "isPinned": zod.boolean(),
   "isDeleted": zod.boolean(),
+  "isLocked": zod.boolean(),
+  "color": zod.string().nullish(),
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -213,6 +215,7 @@ export const CreateNoteBody = zod.object({
   "title": zod.string().min(1),
   "content": zod.string().optional(),
   "folderId": zod.number().nullish(),
+  "color": zod.string().nullish(),
   "sortOrder": zod.number().optional()
 })
 
@@ -224,6 +227,8 @@ export const CreateNoteResponse = zod.object({
   "folderId": zod.number().nullish(),
   "isPinned": zod.boolean(),
   "isDeleted": zod.boolean(),
+  "isLocked": zod.boolean(),
+  "color": zod.string().nullish(),
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -249,6 +254,8 @@ export const ReorderNotesResponseItem = zod.object({
   "folderId": zod.number().nullish(),
   "isPinned": zod.boolean(),
   "isDeleted": zod.boolean(),
+  "isLocked": zod.boolean(),
+  "color": zod.string().nullish(),
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -272,6 +279,8 @@ export const GetNoteResponse = zod.object({
   "folderId": zod.number().nullish(),
   "isPinned": zod.boolean(),
   "isDeleted": zod.boolean(),
+  "isLocked": zod.boolean(),
+  "color": zod.string().nullish(),
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -293,6 +302,7 @@ export const UpdateNoteBody = zod.object({
   "title": zod.string().min(1).optional(),
   "content": zod.string().optional(),
   "folderId": zod.number().nullish(),
+  "color": zod.string().nullish(),
   "isPinned": zod.boolean().optional(),
   "sortOrder": zod.number().optional()
 })
@@ -305,6 +315,8 @@ export const UpdateNoteResponse = zod.object({
   "folderId": zod.number().nullish(),
   "isPinned": zod.boolean(),
   "isDeleted": zod.boolean(),
+  "isLocked": zod.boolean(),
+  "color": zod.string().nullish(),
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -327,6 +339,8 @@ export const DeleteNoteResponse = zod.object({
   "folderId": zod.number().nullish(),
   "isPinned": zod.boolean(),
   "isDeleted": zod.boolean(),
+  "isLocked": zod.boolean(),
+  "color": zod.string().nullish(),
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -349,6 +363,8 @@ export const RestoreNoteResponse = zod.object({
   "folderId": zod.number().nullish(),
   "isPinned": zod.boolean(),
   "isDeleted": zod.boolean(),
+  "isLocked": zod.boolean(),
+  "color": zod.string().nullish(),
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -381,6 +397,8 @@ export const PinNoteResponse = zod.object({
   "folderId": zod.number().nullish(),
   "isPinned": zod.boolean(),
   "isDeleted": zod.boolean(),
+  "isLocked": zod.boolean(),
+  "color": zod.string().nullish(),
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -403,10 +421,86 @@ export const UnpinNoteResponse = zod.object({
   "folderId": zod.number().nullish(),
   "isPinned": zod.boolean(),
   "isDeleted": zod.boolean(),
+  "isLocked": zod.boolean(),
+  "color": zod.string().nullish(),
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Set a password to lock a note
+ */
+export const SetNotePasswordParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const SetNotePasswordBody = zod.object({
+  "password": zod.string().min(1)
+})
+
+export const SetNotePasswordResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "userId": zod.string(),
+  "folderId": zod.number().nullish(),
+  "isPinned": zod.boolean(),
+  "isDeleted": zod.boolean(),
+  "isLocked": zod.boolean(),
+  "color": zod.string().nullish(),
+  "deletedAt": zod.coerce.date().nullish(),
+  "sortOrder": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove the password from a note
+ */
+export const RemoveNotePasswordParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RemoveNotePasswordResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "userId": zod.string(),
+  "folderId": zod.number().nullish(),
+  "isPinned": zod.boolean(),
+  "isDeleted": zod.boolean(),
+  "isLocked": zod.boolean(),
+  "color": zod.string().nullish(),
+  "deletedAt": zod.coerce.date().nullish(),
+  "sortOrder": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Verify the password for a locked note
+ */
+export const VerifyNotePasswordParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const VerifyNotePasswordBody = zod.object({
+  "password": zod.string().min(1)
+})
+
+export const VerifyNotePasswordResponse = zod.object({
+  "valid": zod.boolean()
 })
 
 
@@ -429,6 +523,8 @@ export const MoveNoteResponse = zod.object({
   "folderId": zod.number().nullish(),
   "isPinned": zod.boolean(),
   "isDeleted": zod.boolean(),
+  "isLocked": zod.boolean(),
+  "color": zod.string().nullish(),
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -468,6 +564,8 @@ export const RestoreNoteVersionAsCopyResponse = zod.object({
   "folderId": zod.number().nullish(),
   "isPinned": zod.boolean(),
   "isDeleted": zod.boolean(),
+  "isLocked": zod.boolean(),
+  "color": zod.string().nullish(),
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -491,6 +589,8 @@ export const GetStatsResponse = zod.object({
   "folderId": zod.number().nullish(),
   "isPinned": zod.boolean(),
   "isDeleted": zod.boolean(),
+  "isLocked": zod.boolean(),
+  "color": zod.string().nullish(),
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date(),

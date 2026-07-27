@@ -6,6 +6,8 @@ interface TabContextType {
   openTab: (noteId: number) => void;
   closeTab: (noteId: number) => void;
   reorderTabs: (newTabs: number[]) => void;
+  unlockedNoteIds: Set<number>;
+  unlockNote: (noteId: number) => void;
 }
 
 const TabContext = createContext<TabContextType | undefined>(undefined);
@@ -13,6 +15,7 @@ const TabContext = createContext<TabContextType | undefined>(undefined);
 export function TabProvider({ children }: { children: ReactNode }) {
   const [openTabs, setOpenTabs] = useState<number[]>([]);
   const [activeTabId, setActiveTabId] = useState<number | null>(null);
+  const [unlockedNoteIds, setUnlockedNoteIds] = useState<Set<number>>(new Set());
 
   const openTab = (noteId: number) => {
     if (!openTabs.includes(noteId)) {
@@ -25,7 +28,6 @@ export function TabProvider({ children }: { children: ReactNode }) {
     setOpenTabs((prev) => {
       const newTabs = prev.filter((id) => id !== noteId);
       if (activeTabId === noteId) {
-        // If we closed the active tab, make the last tab active
         setActiveTabId(newTabs.length > 0 ? newTabs[newTabs.length - 1] : null);
       }
       return newTabs;
@@ -36,8 +38,12 @@ export function TabProvider({ children }: { children: ReactNode }) {
     setOpenTabs(newTabs);
   };
 
+  const unlockNote = (noteId: number) => {
+    setUnlockedNoteIds((prev) => new Set([...prev, noteId]));
+  };
+
   return (
-    <TabContext.Provider value={{ openTabs, activeTabId, openTab, closeTab, reorderTabs }}>
+    <TabContext.Provider value={{ openTabs, activeTabId, openTab, closeTab, reorderTabs, unlockedNoteIds, unlockNote }}>
       {children}
     </TabContext.Provider>
   );

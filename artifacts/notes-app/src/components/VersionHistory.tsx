@@ -16,7 +16,7 @@ export default function VersionHistory({ noteId, onClose, onRestored }: VersionH
   const restoreVersion = useRestoreNoteVersionAsCopy();
 
   const handleRestore = (versionId: number) => {
-    restoreVersion.mutate({ id: noteId, data: { versionId } }, {
+    restoreVersion.mutate({ id: noteId, versionId }, {
       onSuccess: (newNote) => {
         queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
         onRestored(newNote.id);
@@ -31,10 +31,7 @@ export default function VersionHistory({ noteId, onClose, onRestored }: VersionH
           <Clock size={16} className="text-primary" />
           Version History
         </h3>
-        <button 
-          onClick={onClose}
-          className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-        >
+        <button onClick={onClose} className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
           <X size={18} />
         </button>
       </div>
@@ -60,19 +57,15 @@ export default function VersionHistory({ noteId, onClose, onRestored }: VersionH
           <div className="relative border-l-2 border-border/50 ml-2 pl-4 space-y-6">
             {versions.map((v, i) => (
               <div key={v.id} className="relative group">
-                {/* Timeline dot */}
                 <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-primary/20 border border-primary z-10 group-hover:bg-primary transition-colors" />
-                
                 <div className="text-xs font-semibold text-muted-foreground mb-1">
                   {format(new Date(v.createdAt), "MMM d, h:mm a")}
                   {i === 0 && <span className="ml-2 px-1.5 py-0.5 rounded-sm bg-primary/10 text-primary text-[10px] uppercase">Current</span>}
                 </div>
-                
                 <div className="bg-card border border-border/50 rounded p-3 text-sm text-card-foreground shadow-sm">
                   <div className="line-clamp-3 opacity-80 leading-relaxed" dangerouslySetInnerHTML={{ __html: v.content || '<em>Empty note</em>' }} />
-                  
                   {i !== 0 && (
-                    <button 
+                    <button
                       onClick={() => handleRestore(v.id)}
                       disabled={restoreVersion.isPending}
                       className="mt-3 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 bg-background border border-border text-foreground text-xs rounded hover:bg-muted hover:border-primary/30 transition-all font-medium"

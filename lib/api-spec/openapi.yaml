@@ -501,6 +501,91 @@ paths:
               schema:
                 $ref: "#/components/schemas/Note"
 
+  /notes/{id}/lock:
+    post:
+      operationId: setNotePassword
+      tags: [notes]
+      summary: Set a password to lock a note
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoteLockInput"
+      responses:
+        "200":
+          description: Note locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: removeNotePassword
+      tags: [notes]
+      summary: Remove the password from a note
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Note unlocked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /notes/{id}/verify-password:
+    post:
+      operationId: verifyNotePassword
+      tags: [notes]
+      summary: Verify the password for a locked note
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotePasswordInput"
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasswordVerifyResult"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /notes/{id}/move:
     post:
       operationId: moveNote
@@ -745,7 +830,7 @@ components:
 
     Note:
       type: object
-      required: [id, title, content, userId, isPinned, isDeleted, sortOrder, createdAt, updatedAt]
+      required: [id, title, content, userId, isPinned, isDeleted, isLocked, sortOrder, createdAt, updatedAt]
       properties:
         id:
           type: integer
@@ -761,6 +846,10 @@ components:
           type: boolean
         isDeleted:
           type: boolean
+        isLocked:
+          type: boolean
+        color:
+          type: ["string", "null"]
         deletedAt:
           type: ["string", "null"]
           format: date-time
@@ -784,6 +873,8 @@ components:
           type: string
         folderId:
           type: ["integer", "null"]
+        color:
+          type: ["string", "null"]
         sortOrder:
           type: integer
 
@@ -797,6 +888,8 @@ components:
           type: string
         folderId:
           type: ["integer", "null"]
+        color:
+          type: ["string", "null"]
         isPinned:
           type: boolean
         sortOrder:
@@ -840,6 +933,29 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    NoteLockInput:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
+          minLength: 1
+
+    NotePasswordInput:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
+          minLength: 1
+
+    PasswordVerifyResult:
+      type: object
+      required: [valid]
+      properties:
+        valid:
+          type: boolean
 
     AppStats:
       type: object
