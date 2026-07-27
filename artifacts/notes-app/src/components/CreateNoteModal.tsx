@@ -10,6 +10,7 @@ import ColorPicker from './ColorPicker';
 import { Folder, useCreateNote, useCreateFolder, getListNotesQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
+import { NOTE_STYLES, DEFAULT_NOTE_STYLE } from '../lib/noteStyles';
 
 interface CreateNoteModalProps {
   open: boolean;
@@ -24,6 +25,7 @@ export default function CreateNoteModal({ open, onOpenChange, folders, defaultFo
   const [title, setTitle] = useState('');
   const [folderId, setFolderId] = useState<number | null>(defaultFolderId ?? null);
   const [color, setColor] = useState<string | null>(null);
+  const [noteStyle, setNoteStyle] = useState<string>(DEFAULT_NOTE_STYLE);
   const [newFolderName, setNewFolderName] = useState('');
   const [showNewFolder, setShowNewFolder] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -36,6 +38,7 @@ export default function CreateNoteModal({ open, onOpenChange, folders, defaultFo
       setTitle('');
       setFolderId(defaultFolderId ?? null);
       setColor(null);
+      setNoteStyle(DEFAULT_NOTE_STYLE);
       setNewFolderName('');
       setShowNewFolder(false);
       setTimeout(() => titleRef.current?.focus(), 100);
@@ -64,6 +67,7 @@ export default function CreateNoteModal({ open, onOpenChange, folders, defaultFo
             content: '',
             folderId: targetFolderId,
             color: color,
+            noteStyle: noteStyle as any,
           }
         }, {
           onSuccess: (n) => resolve(n),
@@ -164,6 +168,23 @@ export default function CreateNoteModal({ open, onOpenChange, folders, defaultFo
           <div className="space-y-1.5">
             <Label>Color</Label>
             <ColorPicker value={color} onChange={setColor} />
+          </div>
+
+          {/* Style */}
+          <div className="space-y-1.5">
+            <Label htmlFor="note-style">Style</Label>
+            <select
+              id="note-style"
+              value={noteStyle}
+              onChange={(e) => setNoteStyle(e.target.value)}
+              className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              {NOTE_STYLES.map((style) => (
+                <option key={style.id} value={style.id}>
+                  {style.name} — {style.description}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

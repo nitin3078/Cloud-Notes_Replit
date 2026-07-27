@@ -5,6 +5,7 @@
  * Folio – Personal Notes API
  * OpenAPI spec version: 0.1.0
  */
+import type { NotePatchNoteStyle } from './notePatchNoteStyle';
 
 export interface NotePatch {
   /** @minLength 1 */
@@ -16,4 +17,5 @@ export interface NotePatch {
   color?: string | null;
   isPinned?: boolean;
   sortOrder?: number;
+  noteStyle?: NotePatchNoteStyle;
 }

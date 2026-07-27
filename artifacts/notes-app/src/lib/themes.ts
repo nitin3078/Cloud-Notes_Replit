@@ -43,3 +43,18 @@ export const THEMES: ThemeDefinition[] = [
 
 export const DEFAULT_THEME_ID = 'parchment';
 export const THEME_STORAGE_KEY = 'folio-theme';
+
+export const CUSTOM_THEME_ID = 'custom';
+export const CUSTOM_COLORS_STORAGE_KEY = 'folio-custom-colors';
+
+export interface CustomColors {
+  background: string; // hex
+  accent: string; // hex — used for buttons, links, highlights
+  text: string; // hex
+}
+
+export const DEFAULT_CUSTOM_COLORS: CustomColors = {
+  background: '#FAF7F2',
+  accent: '#C4713A',
+  text: '#2C1A0E',
+};

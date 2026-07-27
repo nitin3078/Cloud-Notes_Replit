@@ -5,6 +5,7 @@
  * Folio – Personal Notes API
  * OpenAPI spec version: 0.1.0
  */
+import type { NoteNoteStyle } from './noteNoteStyle';
 
 export interface Note {
   id: number;
@@ -21,6 +22,7 @@ export interface Note {
   /** @nullable */
   deletedAt?: Date | null;
   sortOrder: number;
+  noteStyle?: NoteNoteStyle;
   createdAt: Date;
   updatedAt: Date;
 }

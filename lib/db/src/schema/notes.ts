@@ -24,6 +24,7 @@ export const notesTable = pgTable("notes", {
   // bigint, not integer: sortOrder is seeded with Date.now() (a ~13-digit ms
   // timestamp), which overflows Postgres's 32-bit integer range (~2.1 billion).
   sortOrder: bigint("sort_order", { mode: "number" }).notNull().default(0),
+  noteStyle: varchar("note_style").notNull().default("default"),
   color: varchar("color"),
   isLocked: boolean("is_locked").notNull().default(false),
   passwordHash: varchar("password_hash"),

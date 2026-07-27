@@ -5,7 +5,7 @@ import { useGetNote, useUpdateNote, useSetNotePassword, useRemoveNotePassword, u
 import {
   Bold, Italic, Underline, List, ListOrdered,
   CheckSquare, Code, History, Heading1, Heading2, Heading3,
-  Mic, MicOff, CalendarDays, Lock, LockOpen, Palette
+  Mic, MicOff, CalendarDays, Lock, LockOpen, Palette, Sparkles, PaintBucket, Check
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getGetNoteQueryKey } from '@workspace/api-client-react';
@@ -15,15 +15,17 @@ import { Calendar } from '@/components/ui/calendar';
 import ColorPicker from './ColorPicker';
 import LockNoteModal from './LockNoteModal';
 import { useTabs } from '../lib/TabContext';
+import { NOTE_STYLES, DEFAULT_NOTE_STYLE } from '../lib/noteStyles';
 
 interface EditorProps {
   noteId: number;
   onOpenHistory: () => void;
+  onOpenChat: (noteId: number) => void;
 }
 
 const modules = { toolbar: false };
 
-export default function Editor({ noteId, onOpenHistory }: EditorProps) {
+export default function Editor({ noteId, onOpenHistory, onOpenChat }: EditorProps) {
   const queryClient = useQueryClient();
   const { unlockedNoteIds, unlockNote } = useTabs();
 
@@ -46,6 +48,7 @@ export default function Editor({ noteId, onOpenHistory }: EditorProps) {
   const [isListening, setIsListening] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [stylePickerOpen, setStylePickerOpen] = useState(false);
 
   const initializedForId = useRef<number | null>(null);
   const lastSaved = useRef({ title: '', content: '' });
@@ -224,6 +227,15 @@ export default function Editor({ noteId, onOpenHistory }: EditorProps) {
     setColorPickerOpen(false);
   };
 
+  const handleStyleChange = (noteStyle: string) => {
+    updateNote.mutate({ id: noteId, data: { noteStyle: noteStyle as any } }, {
+      onSuccess: (updated) => {
+        queryClient.setQueryData(getGetNoteQueryKey(noteId), (old: any) => old ? { ...old, noteStyle: updated.noteStyle } : old);
+      }
+    });
+    setStylePickerOpen(false);
+  };
+
   if (isLoading || initializedForId.current !== noteId) {
     return (
       <div className="flex-1 flex flex-col h-full bg-card rounded-tl-lg border-l border-t border-border animate-in fade-in duration-500">
@@ -357,6 +369,46 @@ export default function Editor({ noteId, onOpenHistory }: EditorProps) {
             {note?.isLocked ? <Lock size={16} className="text-primary" /> : <LockOpen size={16} />}
           </button>
 
+          {/* Note style */}
+          <Popover open={stylePickerOpen} onOpenChange={setStylePickerOpen}>
+            <PopoverTrigger asChild>
+              <button title="Note style" className="p-1.5 rounded transition-colors text-foreground/70 hover:text-foreground hover:bg-muted">
+                <PaintBucket size={16} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2" align="end">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1.5">Note style</p>
+              <div className="flex flex-col gap-0.5">
+                {NOTE_STYLES.map((style) => {
+                  const active = (note?.noteStyle || DEFAULT_NOTE_STYLE) === style.id;
+                  return (
+                    <button
+                      key={style.id}
+                      type="button"
+                      onClick={() => handleStyleChange(style.id)}
+                      className="flex items-start gap-2 w-full px-2 py-1.5 rounded-md text-sm hover-elevate text-left"
+                    >
+                      <span className="flex-1">
+                        <span className="block font-medium">{style.name}</span>
+                        <span className="block text-xs text-muted-foreground">{style.description}</span>
+                      </span>
+                      {active && <Check size={14} className="text-primary shrink-0 mt-0.5" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Ask AI about this note */}
+          <button
+            title="Ask AI about this note"
+            onClick={() => onOpenChat(noteId)}
+            className="p-1.5 rounded transition-colors text-foreground/70 hover:text-foreground hover:bg-muted"
+          >
+            <Sparkles size={16} />
+          </button>
+
           <div className="w-px h-6 bg-border" />
 
           {/* History */}
@@ -369,7 +421,7 @@ export default function Editor({ noteId, onOpenHistory }: EditorProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto w-full relative">
-        <div className="max-w-[800px] mx-auto px-12 py-16">
+        <div className={`max-w-[800px] mx-auto my-6 px-12 py-16 ${note?.noteStyle && note.noteStyle !== DEFAULT_NOTE_STYLE ? `note-style-${note.noteStyle}` : ''}`}>
           <input
             type="text"
             value={title}

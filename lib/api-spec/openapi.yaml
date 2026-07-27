@@ -855,6 +855,9 @@ components:
           format: date-time
         sortOrder:
           type: integer
+        noteStyle:
+          type: string
+          enum: [default, pdf, notebook, chalkboard, kraft, terminal]
         createdAt:
           type: string
           format: date-time
@@ -877,6 +880,9 @@ components:
           type: ["string", "null"]
         sortOrder:
           type: integer
+        noteStyle:
+          type: string
+          enum: [default, pdf, notebook, chalkboard, kraft, terminal]
 
     NotePatch:
       type: object
@@ -894,6 +900,9 @@ components:
           type: boolean
         sortOrder:
           type: integer
+        noteStyle:
+          type: string
+          enum: [default, pdf, notebook, chalkboard, kraft, terminal]
 
     ReorderInput:
       type: object

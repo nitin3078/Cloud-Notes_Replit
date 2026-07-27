@@ -78,6 +78,18 @@ export interface FolderPatch {
   parentFolderId?: number | null;
 }
 
+export type NoteNoteStyle = typeof NoteNoteStyle[keyof typeof NoteNoteStyle];
+
+
+export const NoteNoteStyle = {
+  default: 'default',
+  pdf: 'pdf',
+  notebook: 'notebook',
+  chalkboard: 'chalkboard',
+  kraft: 'kraft',
+  terminal: 'terminal',
+} as const;
+
 export interface Note {
   id: number;
   title: string;
@@ -93,9 +105,22 @@ export interface Note {
   /** @nullable */
   deletedAt?: string | null;
   sortOrder: number;
+  noteStyle?: NoteNoteStyle;
   createdAt: string;
   updatedAt: string;
 }
+
+export type NoteInputNoteStyle = typeof NoteInputNoteStyle[keyof typeof NoteInputNoteStyle];
+
+
+export const NoteInputNoteStyle = {
+  default: 'default',
+  pdf: 'pdf',
+  notebook: 'notebook',
+  chalkboard: 'chalkboard',
+  kraft: 'kraft',
+  terminal: 'terminal',
+} as const;
 
 export interface NoteInput {
   /** @minLength 1 */
@@ -106,7 +131,20 @@ export interface NoteInput {
   /** @nullable */
   color?: string | null;
   sortOrder?: number;
+  noteStyle?: NoteInputNoteStyle;
 }
+
+export type NotePatchNoteStyle = typeof NotePatchNoteStyle[keyof typeof NotePatchNoteStyle];
+
+
+export const NotePatchNoteStyle = {
+  default: 'default',
+  pdf: 'pdf',
+  notebook: 'notebook',
+  chalkboard: 'chalkboard',
+  kraft: 'kraft',
+  terminal: 'terminal',
+} as const;
 
 export interface NotePatch {
   /** @minLength 1 */
@@ -118,6 +156,7 @@ export interface NotePatch {
   color?: string | null;
   isPinned?: boolean;
   sortOrder?: number;
+  noteStyle?: NotePatchNoteStyle;
 }
 
 export interface NoteOrderItem {

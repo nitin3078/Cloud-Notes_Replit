@@ -18,6 +18,7 @@ function HomeContent() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createModalDefaultFolderId, setCreateModalDefaultFolderId] = useState<number | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatNoteId, setChatNoteId] = useState<number | null>(null);
 
   const { activeTabId, openTab, unlockedNoteIds } = useTabs();
   const { data: folders = [] } = useListFolders();
@@ -40,7 +41,7 @@ function HomeContent() {
         onSelectFolder={setSelectedFolderId}
         onOpenNote={handleOpenNote}
         onCreateNote={handleCreateNote}
-        onOpenChat={() => setChatOpen(true)}
+        onOpenChat={() => { setChatNoteId(null); setChatOpen(true); }}
         user={user}
         onLogout={logout}
       />
@@ -56,6 +57,7 @@ function HomeContent() {
             key={activeTabId}
             noteId={activeTabId}
             onOpenHistory={() => setShowHistoryForNoteId(activeTabId)}
+            onOpenChat={(noteId) => { setChatNoteId(noteId); setChatOpen(true); }}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-700">
@@ -97,7 +99,7 @@ function HomeContent() {
 
       {/* AI Chat Panel */}
       {chatOpen && (
-        <AiChatPanel onClose={() => setChatOpen(false)} />
+        <AiChatPanel noteId={chatNoteId} onClose={() => { setChatOpen(false); setChatNoteId(null); }} />
       )}
 
       {/* Create Note Modal */}

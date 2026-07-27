@@ -100,23 +100,25 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
   const { message, history = [], noteId } = parsed.data;
 
   const notesContext = await buildNotesContext(req.user.id, noteId);
-  if (!notesContext) {
+  if (!notesContext && !noteId) {
     res.json({
-      reply: noteId
-        ? "This note doesn't have any content yet, so I don't have anything to answer from."
-        : "You don't have any notes yet, so I don't have anything to answer from. Create a note first, then ask me about it.",
+      reply: "You don't have any notes yet, so I don't have anything to answer from. Create a note first, then ask me about it.",
     });
     return;
   }
 
   const systemPrompt = [
     "You are a helpful assistant embedded in a personal notes app called Folio.",
-    "Answer the user's question using ONLY the notes provided below as context.",
-    "If the answer isn't in the notes, say so plainly instead of guessing.",
-    "Be concise and reference the relevant note title(s) when useful.",
+    "You can do two kinds of things: (1) answer questions using ONLY the notes provided below, and",
+    "(2) when asked, DRAFT new content the user wants added to a note (a summary, a list, a rewrite, etc).",
+    "If the user asks a factual question and the answer isn't in the notes, say so plainly instead of guessing.",
+    "If the user asks you to write/add/draft something, just write the requested content directly and",
+    "concisely — the user will choose whether to insert it into their note, so don't add meta-commentary",
+    "like \"Here's a draft\" unless it's helpful context.",
+    "Be concise and reference the relevant note title(s) when useful for Q&A.",
     "",
     "=== USER'S NOTES ===",
-    notesContext,
+    notesContext || "(this note is currently empty)",
     "=== END OF NOTES ===",
   ].join("\n");
 
