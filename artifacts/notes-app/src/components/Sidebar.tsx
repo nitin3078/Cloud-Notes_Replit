@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Folder as FolderIcon, ChevronRight, ChevronDown, Plus,
   FileText, Pin, PinOff, Trash2, ArrowRight, GripVertical,
-  FolderPlus, RotateCcw, Flame, Sparkles, CalendarClock
+  FolderPlus, RotateCcw, Flame, Sparkles, CalendarClock, Search, X
 } from 'lucide-react';
 import {
   Folder, Note,
@@ -47,7 +47,7 @@ function ColorDot({ color }: { color?: string | null }) {
 
 export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, onCreateNote, onOpenChat, onOpenPlanner, user, onLogout }: SidebarProps) {
   const queryClient = useQueryClient();
-  const { activeTabId } = useTabs();
+  const { activeTabId, unlockedNoteIds } = useTabs();
 
   const { data: folders = [] } = useListFolders();
   const { data: notes = [] } = useListNotes({
@@ -57,6 +57,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
   const { data: allNotes = [] } = useListNotes();
 
   const [sortBy, setSortBy] = useState<'manual' | 'updatedAt'>('manual');
+  const [searchQuery, setSearchQuery] = useState('');
   const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
   const [renamingFolderId, setRenamingFolderId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -73,6 +74,22 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
   );
   const displayNotes = selectedFolderId === 'trash' ? trashedNotes :
     selectedFolderId === 'pinned' ? pinnedNotes : activeNotes;
+
+  const trimmedQuery = searchQuery.trim().toLowerCase();
+  const isSearching = trimmedQuery.length > 0;
+  const searchResults = isSearching
+    ? allNotes.filter((n) => {
+        if (n.isDeleted) return false;
+        const isUnlockedForDisplay = !n.isLocked || unlockedNoteIds.has(n.id);
+        const titleMatch = (n.title || '').toLowerCase().includes(trimmedQuery);
+        // Locked notes are only searchable by title — never by content —
+        // matching the same privacy rule as the sidebar previews.
+        const contentMatch = isUnlockedForDisplay && n.content
+          ? n.content.replace(/<[^>]+>/g, ' ').toLowerCase().includes(trimmedQuery)
+          : false;
+        return titleMatch || contentMatch;
+      }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    : [];
 
   const createFolder = useCreateFolder();
   const updateFolder = useUpdateFolder();
@@ -199,8 +216,66 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
           <CalendarClock size={16} className="text-muted-foreground" />
           Planner
         </button>
+        <div className="relative">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search notes…"
+            className="w-full h-9 rounded-md border border-input bg-background pl-8 pr-8 text-sm outline-none focus:ring-1 focus:ring-ring"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
       </div>
 
+      {isSearching ? (
+        <div className="flex-1 overflow-y-auto p-2 min-h-0">
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2">
+            {searchResults.length} result{searchResults.length === 1 ? '' : 's'}
+          </div>
+          {searchResults.length === 0 ? (
+            <div className="p-4 text-center text-sm text-muted-foreground italic font-serif">No notes match "{searchQuery}".</div>
+          ) : (
+            <div className="space-y-1">
+              {searchResults.map((note) => {
+                const locked = note.isLocked && !unlockedNoteIds.has(note.id);
+                const preview = locked
+                  ? 'This note is password-protected.'
+                  : note.content ? note.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 90) || 'No content yet.' : 'No content yet.';
+                return (
+                  <div
+                    key={note.id}
+                    onClick={() => { onOpenNote(note); setSearchQuery(''); }}
+                    className={`flex flex-col p-3 rounded-md cursor-pointer transition-colors border ${
+                      activeTabId === note.id ? 'bg-card border-primary/20 shadow-sm' : 'bg-transparent border-transparent hover:bg-sidebar-accent/60 hover:border-border/60'
+                    }`}
+                    style={note.color ? { borderLeftColor: note.color, borderLeftWidth: '3px' } : {}}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-sm truncate flex items-center gap-1.5">
+                        <ColorDot color={note.color} />
+                        {note.title || 'Untitled Note'}
+                      </span>
+                      {note.isLocked && <span className="text-muted-foreground/60 text-xs shrink-0">🔒</span>}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1 line-clamp-1 opacity-70">{preview}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+      <>
       <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-6 min-h-0">
         {/* Navigation */}
         <div className="px-3 space-y-1">
@@ -399,7 +474,10 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                   <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
                     {displayNotes.map((note, index) => {
                       const isDragDisabled = selectedFolderId === 'trash' || sortBy === 'updatedAt';
-                      const previewText = note.content
+                      const isUnlockedForDisplay = !note.isLocked || unlockedNoteIds.has(note.id);
+                      const previewText = !isUnlockedForDisplay
+                        ? 'This note is password-protected.'
+                        : note.content
                         ? note.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || 'No content yet.'
                         : 'No content yet.';
                       return (
@@ -437,7 +515,9 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                                     </div>
                                   </div>
                                   <div className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed opacity-70 pl-5">
-                                    {note.content ? note.content.replace(/<[^>]+>/g, '').substring(0, 80) : 'No content...'}
+                                    {!isUnlockedForDisplay
+                                      ? '🔒 Locked'
+                                      : note.content ? note.content.replace(/<[^>]+>/g, '').substring(0, 80) : 'No content...'}
                                   </div>
 
                                   {/* Hover preview — plain CSS, no JS pointer listeners, so it can't
@@ -540,6 +620,8 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
           )}
         </div>
       </div>
+      </>
+      )}
     </DragDropContext>
     </div>
   );
