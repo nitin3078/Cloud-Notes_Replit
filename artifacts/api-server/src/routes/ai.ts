@@ -111,8 +111,6 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
     return;
   }
 
-  const NO_ANSWER_MARKER = "NOTES_NO_ANSWER";
-
   const systemPrompt = allowGeneral
     ? [
         "You are a helpful, knowledgeable general-purpose assistant embedded in a personal notes app called Folio.",
@@ -127,11 +125,13 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
         "You are a helpful assistant embedded in a personal notes app called Folio.",
         "You can do two kinds of things: (1) answer questions using ONLY the notes provided below, and",
         "(2) when asked, DRAFT new content the user wants added to a note (a summary, a list, a rewrite, etc).",
-        `If the user asks a factual question and the answer is NOT in the notes, respond with EXACTLY the single word ${NO_ANSWER_MARKER} and nothing else — no punctuation, no explanation.`,
-        "If the user asks you to write/add/draft something, just write the requested content directly and",
-        "concisely — the user will choose whether to insert it into their note, so don't add meta-commentary",
-        "like \"Here's a draft\" unless it's helpful context.",
-        "Be concise and reference the relevant note title(s) when useful for Q&A.",
+        "Respond ONLY with JSON matching the required schema — no markdown fences, no extra text.",
+        "Set foundInNotes to false ONLY when the user asked a factual question and the notes don't contain",
+        "the answer; in that case 'reply' should briefly say so. Drafting requests (write/add/summarize/etc)",
+        "always count as foundInNotes: true, since you're generating the content, not looking it up.",
+        "When foundInNotes is true, write the actual answer or drafted content in 'reply' — concise, and",
+        "without meta-commentary like \"Here's a draft\" unless it's helpful context. Reference the relevant",
+        "note title(s) when useful for Q&A.",
         "",
         "=== USER'S NOTES ===",
         notesContext || "(this note is currently empty)",
@@ -143,6 +143,23 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
     role: h.role === "assistant" ? "model" : "user",
     parts: [{ text: h.content }],
   }));
+
+  // In notes-restricted mode, force structured JSON output so we can reliably
+  // tell "answered from notes" apart from "not in the notes" — asking the
+  // model to echo one exact literal phrase is not reliable in practice, it
+  // tends to paraphrase instead.
+  const generationConfig: Record<string, unknown> = { maxOutputTokens: 1024 };
+  if (!allowGeneral) {
+    generationConfig.responseMimeType = "application/json";
+    generationConfig.responseSchema = {
+      type: "OBJECT",
+      properties: {
+        foundInNotes: { type: "BOOLEAN" },
+        reply: { type: "STRING" },
+      },
+      required: ["foundInNotes", "reply"],
+    };
+  }
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
@@ -158,7 +175,7 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
           ...geminiHistory,
           { role: "user", parts: [{ text: message }] },
         ],
-        generationConfig: { maxOutputTokens: 1024 },
+        generationConfig,
       }),
     },
   );
@@ -173,21 +190,30 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
   const data = await response.json() as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
   };
-  const reply = (data.candidates?.[0]?.content?.parts ?? [])
+  const rawText = (data.candidates?.[0]?.content?.parts ?? [])
     .map((part) => part.text)
     .filter((text): text is string => Boolean(text))
     .join("\n")
-    .trim() || "I couldn't generate a response. Please try again.";
+    .trim();
 
-  if (!allowGeneral && reply.trim() === NO_ANSWER_MARKER) {
-    res.json({
-      reply: "I couldn't find an answer to that in your notes.",
-      noAnswerInNotes: true,
-    });
-    return;
+  if (!allowGeneral) {
+    try {
+      const structured = JSON.parse(rawText) as { foundInNotes?: boolean; reply?: string };
+      const reply = structured.reply?.trim() || "I couldn't generate a response. Please try again.";
+      if (structured.foundInNotes === false) {
+        res.json({ reply, noAnswerInNotes: true });
+        return;
+      }
+      res.json({ reply });
+      return;
+    } catch {
+      // Fall through to plain-text handling below if the model didn't
+      // return valid JSON for some reason — better a working reply than
+      // a broken response.
+    }
   }
 
-  res.json({ reply });
+  res.json({ reply: rawText || "I couldn't generate a response. Please try again." });
 });
 
 export default router;
