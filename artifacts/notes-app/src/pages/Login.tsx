@@ -46,16 +46,16 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
       {/* Decorative notebook spine */}
-      <div className="absolute left-0 top-0 bottom-0 w-8 md:w-16 bg-sidebar border-r-2 border-border/60 shadow-[4px_0_12px_rgba(44,26,14,0.05)] z-0" />
+      <div className="absolute left-0 top-0 bottom-0 w-8 md:w-16 bg-sidebar border-r-2 border-border/60 shadow-[4px_0_12px_rgba(44,26,14,0.05)] z-0 pointer-events-none" />
 
       {/* Decorative stitches */}
-      <div className="absolute left-3 md:left-6 top-12 bottom-12 flex flex-col justify-between z-10 opacity-20">
+      <div className="absolute left-3 md:left-6 top-12 bottom-12 flex flex-col justify-between z-10 opacity-20 pointer-events-none">
         {[1, 2, 3, 4, 5].map((i) => (
           <div key={i} className="w-2 md:w-4 h-1 bg-foreground rounded-full shadow-sm" />
         ))}
       </div>
 
-      <div className="max-w-sm w-full relative z-10 flex flex-col items-center text-center pl-8 md:pl-0 animate-in fade-in zoom-in-95 duration-700">
+      <div className="max-w-sm w-full relative z-20 flex flex-col items-center text-center pl-8 md:pl-0 animate-in fade-in zoom-in-95 duration-700">
         <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-6 shadow-inner border border-primary/20 rotate-3 transition-transform hover:rotate-6">
           <BookOpen className="w-8 h-8 text-primary" strokeWidth={1.5} />
         </div>
