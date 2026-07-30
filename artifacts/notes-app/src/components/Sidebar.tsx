@@ -18,6 +18,7 @@ import { useTabs } from '../lib/TabContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { NOTE_COLORS } from '../lib/noteColors';
+import { htmlToPlainText } from '../lib/htmlToPlainText';
 import ColorPicker from './ColorPicker';
 import ThemeSwitcher from './ThemeSwitcher';
 
@@ -50,7 +51,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
   const queryClient = useQueryClient();
   const { activeTabId, unlockedNoteIds } = useTabs();
 
-  const { data: folders = [] } = useListFolders();
+  const { data: folders = [], isLoading: foldersLoading } = useListFolders();
   const { data: notes = [] } = useListNotes({
     folderId: typeof selectedFolderId === 'number' ? selectedFolderId : undefined,
     deleted: selectedFolderId === 'trash' ? true : undefined,
@@ -98,7 +99,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
         // Locked notes are only searchable by title — never by content —
         // matching the same privacy rule as the sidebar previews.
         const contentMatch = isUnlockedForDisplay && n.content
-          ? n.content.replace(/<[^>]+>/g, ' ').toLowerCase().includes(trimmedQuery)
+          ? htmlToPlainText(n.content).toLowerCase().includes(trimmedQuery)
           : false;
         return titleMatch || contentMatch;
       }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
@@ -263,7 +264,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                 const locked = note.isLocked && !unlockedNoteIds.has(note.id);
                 const preview = locked
                   ? 'This note is password-protected.'
-                  : note.content ? note.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 90) || 'No content yet.' : 'No content yet.';
+                  : note.content ? htmlToPlainText(note.content).substring(0, 90) || 'No content yet.' : 'No content yet.';
                 return (
                   <div
                     key={note.id}
@@ -338,6 +339,13 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
               <Plus size={14} />
             </button>
           </div>
+
+          {foldersLoading && (
+            <div className="space-y-1.5 px-1 py-1 animate-pulse">
+              <div className="h-6 rounded bg-sidebar-accent/40 w-5/6" />
+              <div className="h-6 rounded bg-sidebar-accent/40 w-2/3" />
+            </div>
+          )}
 
           {rootFolders.map(folder => {
             const isExpanded = expandedFolders.has(folder.id);
@@ -516,7 +524,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                       const previewText = !isUnlockedForDisplay
                         ? 'This note is password-protected.'
                         : note.content
-                        ? note.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || 'No content yet.'
+                        ? htmlToPlainText(note.content) || 'No content yet.'
                         : 'No content yet.';
                       return (
                         <Draggable key={note.id} draggableId={note.id.toString()} index={index} isDragDisabled={isDragDisabled}>
@@ -555,7 +563,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                                   <div className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed opacity-70 pl-5">
                                     {!isUnlockedForDisplay
                                       ? '🔒 Locked'
-                                      : note.content ? note.content.replace(/<[^>]+>/g, '').substring(0, 80) : 'No content...'}
+                                      : note.content ? htmlToPlainText(note.content).substring(0, 80) : 'No content...'}
                                   </div>
 
                                   {/* Hover preview — plain CSS, no JS pointer listeners, so it can't

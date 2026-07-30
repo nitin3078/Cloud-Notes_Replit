@@ -47,9 +47,10 @@ app.use("/api", (_req, res) => {
 app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   req.log?.error({ err }, "Unhandled error");
   if (res.headersSent) return;
-  res.status(500).json({
-    error: err instanceof Error ? err.message : "Internal server error",
-  });
+  // Deliberately generic: some errors (e.g. Drizzle query failures) put the
+  // raw SQL and parameter values in err.message, which must never reach the
+  // client. Full detail is captured above via the server-side log instead.
+  res.status(500).json({ error: "Something went wrong. Please try again." });
 });
 
 export default app;

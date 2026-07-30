@@ -55,7 +55,9 @@ export const plannerEntriesTable = pgTable("planner_entries", {
   date: date("date").notNull(),
   task: text("task").notNull(),
   isDone: boolean("is_done").notNull().default(false),
-  sortOrder: integer("sort_order").notNull().default(0),
+  // bigint, not integer — same reason as notesTable.sortOrder above:
+  // this is seeded with Date.now(), which overflows a 32-bit integer.
+  sortOrder: bigint("sort_order", { mode: "number" }).notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
