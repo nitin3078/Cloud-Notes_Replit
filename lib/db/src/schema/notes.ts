@@ -1,6 +1,7 @@
 import { pgTable, text, serial, timestamp, boolean, integer, bigint, varchar, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { sql } from "drizzle-orm";
 import { usersTable } from "./auth";
 
 export const foldersTable = pgTable("folders", {
@@ -25,6 +26,10 @@ export const notesTable = pgTable("notes", {
   // timestamp), which overflows Postgres's 32-bit integer range (~2.1 billion).
   sortOrder: bigint("sort_order", { mode: "number" }).notNull().default(0),
   noteStyle: varchar("note_style").notNull().default("default"),
+  // Simple text array rather than a separate tags table + join table — a
+  // note belonging to a few tags doesn't need relational integrity, just
+  // fast "does this note have tag X" filtering, which Postgres arrays do fine.
+  tags: text("tags").array().notNull().default(sql`ARRAY[]::text[]`),
   color: varchar("color"),
   isLocked: boolean("is_locked").notNull().default(false),
   passwordHash: varchar("password_hash"),

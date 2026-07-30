@@ -255,6 +255,33 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /tags:
+    get:
+      operationId: listTags
+      tags: [tags]
+      summary: List distinct tags across the user's notes, with counts
+      responses:
+        "200":
+          description: List of tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [name, count]
+                  properties:
+                    name:
+                      type: string
+                    count:
+                      type: integer
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /planner-entries:
     get:
       operationId: listPlannerEntries
@@ -946,6 +973,10 @@ components:
         noteStyle:
           type: string
           enum: [default, pdf, notebook, chalkboard, kraft, terminal]
+        tags:
+          type: array
+          items:
+            type: string
         createdAt:
           type: string
           format: date-time
@@ -1016,6 +1047,10 @@ components:
         noteStyle:
           type: string
           enum: [default, pdf, notebook, chalkboard, kraft, terminal]
+        tags:
+          type: array
+          items:
+            type: string
 
     NotePatch:
       type: object
@@ -1036,6 +1071,10 @@ components:
         noteStyle:
           type: string
           enum: [default, pdf, notebook, chalkboard, kraft, terminal]
+        tags:
+          type: array
+          items:
+            type: string
 
     ReorderInput:
       type: object

@@ -5,10 +5,10 @@ import { useGetNote, useUpdateNote, useSetNotePassword, useRemoveNotePassword, u
 import {
   Bold, Italic, Underline, List, ListOrdered,
   CheckSquare, Code, History, Heading1, Heading2, Heading3,
-  Mic, MicOff, CalendarDays, Lock, LockOpen, Palette, Sparkles, PaintBucket, Check
+  Mic, MicOff, CalendarDays, Lock, LockOpen, Palette, Sparkles, PaintBucket, Check, Download, X, Plus
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { getGetNoteQueryKey } from '@workspace/api-client-react';
+import { getGetNoteQueryKey, getListTagsQueryKey } from '@workspace/api-client-react';
 import { format } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -16,6 +16,7 @@ import ColorPicker from './ColorPicker';
 import LockNoteModal from './LockNoteModal';
 import { useTabs } from '../lib/TabContext';
 import { NOTE_STYLES, DEFAULT_NOTE_STYLE } from '../lib/noteStyles';
+import { downloadMarkdown } from '../lib/markdownExport';
 
 interface EditorProps {
   noteId: number;
@@ -49,6 +50,8 @@ export default function Editor({ noteId, onOpenHistory, onOpenChat }: EditorProp
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
+  const [tagInput, setTagInput] = useState('');
+  const [addingTag, setAddingTag] = useState(false);
 
   const initializedForId = useRef<number | null>(null);
   const lastSaved = useRef({ title: '', content: '' });
@@ -245,6 +248,30 @@ export default function Editor({ noteId, onOpenHistory, onOpenChat }: EditorProp
     setStylePickerOpen(false);
   };
 
+  const applyTags = (updated: string[]) => {
+    updateNote.mutate({ id: noteId, data: { tags: updated } }, {
+      onSuccess: () => {
+        queryClient.setQueryData(getGetNoteQueryKey(noteId), (old: any) => old ? { ...old, tags: updated } : old);
+        queryClient.invalidateQueries({ queryKey: getListTagsQueryKey() });
+      }
+    });
+  };
+
+  const handleAddTag = () => {
+    const newTag = tagInput.trim().toLowerCase().replace(/^#/, '');
+    setTagInput('');
+    setAddingTag(false);
+    if (!newTag || !note) return;
+    const currentTags = note.tags ?? [];
+    if (currentTags.includes(newTag)) return;
+    applyTags([...currentTags, newTag]);
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    if (!note) return;
+    applyTags((note.tags ?? []).filter((t) => t !== tag));
+  };
+
   if (isLoading || initializedForId.current !== noteId) {
     return (
       <div className="flex-1 flex flex-col h-full bg-card rounded-tl-lg border-l border-t border-border animate-in fade-in duration-500">
@@ -409,7 +436,16 @@ export default function Editor({ noteId, onOpenHistory, onOpenChat }: EditorProp
             </PopoverContent>
           </Popover>
 
-          {/* Ask AI about this note lives as a floating widget now — see below, not in the toolbar */}
+          {/* Download as Markdown */}
+          <button
+            title="Download as Markdown"
+            onClick={() => downloadMarkdown(title, content)}
+            className="p-1.5 rounded transition-colors text-foreground/70 hover:text-foreground hover:bg-muted"
+          >
+            <Download size={16} />
+          </button>
+
+          {/* Ask AI widget lives as a floating widget now — see below, not in the toolbar */}
 
           <div className="w-px h-6 bg-border" />
 
@@ -433,7 +469,7 @@ export default function Editor({ noteId, onOpenHistory, onOpenChat }: EditorProp
           />
           {/* Last modified */}
           {note?.updatedAt && (
-            <p className="text-xs text-muted-foreground/60 mb-8 font-sans">
+            <p className="text-xs text-muted-foreground/60 mb-3 font-sans">
               Last edited {format(new Date(note.updatedAt), "MMM d, yyyy 'at' h:mm a")}
               {note.color && (
                 <span className="inline-flex items-center gap-1 ml-3">
@@ -443,6 +479,49 @@ export default function Editor({ noteId, onOpenHistory, onOpenChat }: EditorProp
               )}
             </p>
           )}
+
+          {/* Tags */}
+          <div className="flex flex-wrap items-center gap-1.5 mb-8">
+            {(note?.tags ?? []).map((tag) => (
+              <span
+                key={tag}
+                className="group inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-sidebar-accent/40 text-foreground/80"
+              >
+                #{tag}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveTag(tag)}
+                  className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+                  title={`Remove #${tag}`}
+                >
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+            {addingTag ? (
+              <input
+                autoFocus
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddTag();
+                  if (e.key === 'Escape') { setAddingTag(false); setTagInput(''); }
+                }}
+                onBlur={handleAddTag}
+                placeholder="tag name"
+                className="w-24 px-2 py-1 rounded-full text-xs bg-background border border-input outline-none focus:ring-1 focus:ring-ring"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAddingTag(true)}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border border-dashed border-border"
+              >
+                <Plus size={11} /> Add tag
+              </button>
+            )}
+          </div>
           <ReactQuill
             ref={quillRef}
             theme="snow"

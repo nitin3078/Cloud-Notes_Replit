@@ -31,6 +31,7 @@ import type {
   HandleBrowserLoginCallbackParams,
   HealthStatus,
   ListNotesParams,
+  ListTags200Item,
   LogoutBrowserSessionParams,
   LogoutSuccess,
   MobileTokenExchangeRequest,
@@ -914,6 +915,83 @@ export const useDeleteFolder = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getDeleteFolderMutationOptions(options));
     }
+
+export const getListTagsUrl = () => {
+
+
+
+
+  return `/api/tags`
+}
+
+/**
+ * @summary List distinct tags across the user's notes, with counts
+ */
+export const listTags = async ( options?: RequestInit): Promise<ListTags200Item[]> => {
+
+  return customFetch<ListTags200Item[]>(getListTagsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTagsQueryKey = () => {
+    return [
+    `/api/tags`
+    ] as const;
+    }
+
+
+export const getListTagsQueryOptions = <TData = Awaited<ReturnType<typeof listTags>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTags>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTagsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTags>>> = ({ signal }) => listTags({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTags>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTagsQueryResult = NonNullable<Awaited<ReturnType<typeof listTags>>>
+export type ListTagsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List distinct tags across the user's notes, with counts
+ */
+
+export function useListTags<TData = Awaited<ReturnType<typeof listTags>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTags>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTagsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListPlannerEntriesUrl = () => {
 

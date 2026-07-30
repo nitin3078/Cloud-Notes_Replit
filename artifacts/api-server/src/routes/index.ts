@@ -6,6 +6,7 @@ import notesRouter from "./notes";
 import statsRouter from "./stats";
 import aiRouter from "./ai";
 import plannerRouter from "./planner";
+import tagsRouter from "./tags";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(notesRouter);
 router.use(statsRouter);
 router.use(aiRouter);
 router.use(plannerRouter);
+router.use(tagsRouter);
 
 export default router;

@@ -20,6 +20,7 @@ export * from './handleBrowserLoginCallbackParams';
 export * from './healthStatus';
 export * from './listNotesParams';
 export * from './listNotesSortBy';
+export * from './listTags200Item';
 export * from './logoutBrowserSessionParams';
 export * from './logoutSuccess';
 export * from './mobileTokenExchangeRequest';

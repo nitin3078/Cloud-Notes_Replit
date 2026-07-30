@@ -23,6 +23,7 @@ export interface Note {
   deletedAt?: Date | null;
   sortOrder: number;
   noteStyle?: NoteNoteStyle;
+  tags?: string[];
   createdAt: Date;
   updatedAt: Date;
 }

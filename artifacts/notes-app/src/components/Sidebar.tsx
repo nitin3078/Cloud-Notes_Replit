@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Folder as FolderIcon, ChevronRight, ChevronDown, Plus,
   FileText, Pin, PinOff, Trash2, ArrowRight, GripVertical,
-  FolderPlus, RotateCcw, Flame, Sparkles, CalendarClock, Search, X
+  FolderPlus, RotateCcw, Flame, Sparkles, CalendarClock, Search, X, Tag as TagIcon
 } from 'lucide-react';
 import {
   Folder, Note,
@@ -11,7 +11,8 @@ import {
   useUpdateNote, useMoveNote, useDeleteNote,
   usePinNote, useUnpinNote, useReorderNotes,
   useRestoreNote, usePurgeNote,
-  getListNotesQueryKey,
+  useListTags,
+  getListNotesQueryKey, getListTagsQueryKey,
 } from '@workspace/api-client-react';
 import { useTabs } from '../lib/TabContext';
 import { useQueryClient } from '@tanstack/react-query';
@@ -58,6 +59,13 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
 
   const [sortBy, setSortBy] = useState<'manual' | 'updatedAt'>('manual');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const { data: tags = [] } = useListTags();
+
+  const selectFolder = (id: number | 'all' | 'trash' | 'pinned') => {
+    setSelectedTag(null);
+    onSelectFolder(id);
+  };
   const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
   const [renamingFolderId, setRenamingFolderId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -72,7 +80,12 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
   const trashedNotes = notes.filter(n => n.isDeleted).sort((a, b) =>
     new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   );
-  const displayNotes = selectedFolderId === 'trash' ? trashedNotes :
+  const taggedNotes = selectedTag
+    ? allNotes.filter((n) => !n.isDeleted && (n.tags ?? []).includes(selectedTag))
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    : [];
+  const displayNotes = selectedTag ? taggedNotes :
+    selectedFolderId === 'trash' ? trashedNotes :
     selectedFolderId === 'pinned' ? pinnedNotes : activeNotes;
 
   const trimmedQuery = searchQuery.trim().toLowerCase();
@@ -290,7 +303,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                 {(provided, snapshot) => (
                   <div ref={provided.innerRef} {...provided.droppableProps}>
                     <button
-                      onClick={() => onSelectFolder(id)}
+                      onClick={() => selectFolder(id)}
                       className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors border ${
                         snapshot.isDraggingOver ? 'bg-primary/10 border-primary/40' :
                         selectedFolderId === id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium border-transparent' :
@@ -307,7 +320,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
             ) : (
               <button
                 key={id}
-                onClick={() => onSelectFolder(id)}
+                onClick={() => selectFolder(id)}
                 className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${selectedFolderId === id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'hover:bg-sidebar-accent/50'}`}
               >
                 <Icon size={16} className="text-muted-foreground" />
@@ -356,7 +369,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                           {(provided, snapshot) => (
                             <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1">
                               <button
-                                onClick={() => onSelectFolder(folder.id)}
+                                onClick={() => selectFolder(folder.id)}
                                 className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors border ${
                                   snapshot.isDraggingOver ? 'bg-primary/10 border-primary/40' :
                                   selectedFolderId === folder.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium border-transparent' :
@@ -399,7 +412,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                             {(provided, snapshot) => (
                               <div ref={provided.innerRef} {...provided.droppableProps}>
                                 <button
-                                  onClick={() => onSelectFolder(sub.id)}
+                                  onClick={() => selectFolder(sub.id)}
                                   className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors border ${
                                     snapshot.isDraggingOver ? 'bg-primary/10 border-primary/40' :
                                     selectedFolderId === sub.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium border-transparent' :
@@ -432,13 +445,38 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
             );
           })}
         </div>
+
+        {/* Tags */}
+        {tags.length > 0 && (
+          <div className="px-3 space-y-1">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-2">Tags</div>
+            <div className="flex flex-wrap gap-1.5 px-2">
+              {tags.map((t) => (
+                <button
+                  key={t.name}
+                  type="button"
+                  onClick={() => setSelectedTag(selectedTag === t.name ? null : t.name)}
+                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors border ${
+                    selectedTag === t.name
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-sidebar-accent/40 text-foreground/80 border-transparent hover:bg-sidebar-accent/70'
+                  }`}
+                >
+                  #{t.name}
+                  <span className="opacity-60">{t.count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Note List */}
       <div className="h-[38%] shrink-0 border-t border-border/50 flex flex-col bg-background/50">
         <div className="px-4 py-3 flex items-center justify-between border-b border-border/30 bg-sidebar/50">
           <div className="font-semibold text-sm">
-            {selectedFolderId === 'all' ? 'All Notes' :
+            {selectedTag ? `#${selectedTag}` :
+              selectedFolderId === 'all' ? 'All Notes' :
               selectedFolderId === 'pinned' ? 'Pinned' :
               selectedFolderId === 'trash' ? 'Trash' :
               folders.find(f => f.id === selectedFolderId)?.name || 'Notes'}

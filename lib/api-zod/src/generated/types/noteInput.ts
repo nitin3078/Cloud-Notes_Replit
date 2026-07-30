@@ -17,4 +17,5 @@ export interface NoteInput {
   color?: string | null;
   sortOrder?: number;
   noteStyle?: NoteInputNoteStyle;
+  tags?: string[];
 }

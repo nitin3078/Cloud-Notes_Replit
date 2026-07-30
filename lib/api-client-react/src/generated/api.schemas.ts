@@ -106,6 +106,7 @@ export interface Note {
   deletedAt?: string | null;
   sortOrder: number;
   noteStyle?: NoteNoteStyle;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -157,6 +158,7 @@ export interface NoteInput {
   color?: string | null;
   sortOrder?: number;
   noteStyle?: NoteInputNoteStyle;
+  tags?: string[];
 }
 
 export type NotePatchNoteStyle = typeof NotePatchNoteStyle[keyof typeof NotePatchNoteStyle];
@@ -182,6 +184,7 @@ export interface NotePatch {
   isPinned?: boolean;
   sortOrder?: number;
   noteStyle?: NotePatchNoteStyle;
+  tags?: string[];
 }
 
 export interface NoteOrderItem {
@@ -244,6 +247,11 @@ iss?: string;
 
 export type LogoutBrowserSessionParams = {
 returnTo?: string;
+};
+
+export type ListTags200Item = {
+  name: string;
+  count: number;
 };
 
 export type ListNotesParams = {

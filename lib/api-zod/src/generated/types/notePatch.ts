@@ -18,4 +18,5 @@ export interface NotePatch {
   isPinned?: boolean;
   sortOrder?: number;
   noteStyle?: NotePatchNoteStyle;
+  tags?: string[];
 }

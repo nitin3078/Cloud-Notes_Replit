@@ -178,6 +178,16 @@ export const DeleteFolderResponse = zod.void()
 
 
 /**
+ * @summary List distinct tags across the user's notes, with counts
+ */
+export const ListTagsResponseItem = zod.object({
+  "name": zod.string(),
+  "count": zod.number()
+})
+export const ListTagsResponse = zod.array(ListTagsResponseItem)
+
+
+/**
  * @summary List all planner entries (sparse — only dates that have entries)
  */
 export const ListPlannerEntriesResponseItem = zod.object({
@@ -277,6 +287,7 @@ export const ListNotesResponseItem = zod.object({
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional(),
+  "tags": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -295,7 +306,8 @@ export const CreateNoteBody = zod.object({
   "folderId": zod.number().nullish(),
   "color": zod.string().nullish(),
   "sortOrder": zod.number().optional(),
-  "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional()
+  "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional(),
+  "tags": zod.array(zod.string()).optional()
 })
 
 export const CreateNoteResponse = zod.object({
@@ -311,6 +323,7 @@ export const CreateNoteResponse = zod.object({
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional(),
+  "tags": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -339,6 +352,7 @@ export const ReorderNotesResponseItem = zod.object({
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional(),
+  "tags": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -365,6 +379,7 @@ export const GetNoteResponse = zod.object({
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional(),
+  "tags": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -387,7 +402,8 @@ export const UpdateNoteBody = zod.object({
   "color": zod.string().nullish(),
   "isPinned": zod.boolean().optional(),
   "sortOrder": zod.number().optional(),
-  "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional()
+  "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional(),
+  "tags": zod.array(zod.string()).optional()
 })
 
 export const UpdateNoteResponse = zod.object({
@@ -403,6 +419,7 @@ export const UpdateNoteResponse = zod.object({
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional(),
+  "tags": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -428,6 +445,7 @@ export const DeleteNoteResponse = zod.object({
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional(),
+  "tags": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -453,6 +471,7 @@ export const RestoreNoteResponse = zod.object({
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional(),
+  "tags": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -488,6 +507,7 @@ export const PinNoteResponse = zod.object({
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional(),
+  "tags": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -513,6 +533,7 @@ export const UnpinNoteResponse = zod.object({
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional(),
+  "tags": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -545,6 +566,7 @@ export const SetNotePasswordResponse = zod.object({
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional(),
+  "tags": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -570,6 +592,7 @@ export const RemoveNotePasswordResponse = zod.object({
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional(),
+  "tags": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -618,6 +641,7 @@ export const MoveNoteResponse = zod.object({
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional(),
+  "tags": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -660,6 +684,7 @@ export const RestoreNoteVersionAsCopyResponse = zod.object({
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional(),
+  "tags": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -686,6 +711,7 @@ export const GetStatsResponse = zod.object({
   "deletedAt": zod.coerce.date().nullish(),
   "sortOrder": zod.number(),
   "noteStyle": zod.enum(['default', 'pdf', 'notebook', 'chalkboard', 'kraft', 'terminal']).optional(),
+  "tags": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }))
