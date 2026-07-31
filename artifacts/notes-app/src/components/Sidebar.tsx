@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Folder as FolderIcon, ChevronRight, ChevronDown, Plus,
@@ -75,9 +75,22 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
     onSelectFolder(id);
   };
   const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
+  // The All Notes / folder tree starts expanded; opening a note collapses it
+  // automatically to a compact "which folder am I in" line, since you're no
+  // longer browsing — you can still expand it back manually at any time.
+  const [allNotesExpanded, setAllNotesExpanded] = useState(true);
+
+  useEffect(() => {
+    if (activeTabId) setAllNotesExpanded(false);
+  }, [activeTabId]);
   const [renamingFolderId, setRenamingFolderId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [colorPickerNoteId, setColorPickerNoteId] = useState<number | null>(null);
+
+  const activeNote = activeTabId ? allNotes.find((n) => n.id === activeTabId) : null;
+  const activeNoteFolderName = activeNote?.folderId
+    ? folders.find((f) => f.id === activeNote.folderId)?.name ?? null
+    : activeNote ? 'All Notes' : null;
 
   const pinnedNotes = allNotes.filter(n => n.isPinned && !n.isDeleted).sort((a, b) =>
     sortBy === 'manual' ? a.sortOrder - b.sortOrder : new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
@@ -322,9 +335,19 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
           </div>
         )}
 
-        {/* All Notes + Folders — one unified tree, All Notes is the root */}
+        {/* All Notes + Folders — one unified tree, All Notes is the root.
+            Expanded by default; collapses automatically once you open a
+            note (you're browsing less at that point), showing just that
+            note's folder instead. Always manually re-expandable. */}
         <div className="px-3 space-y-1">
           <div className="flex items-center justify-between px-1 mb-1">
+            <button
+              onClick={() => setAllNotesExpanded((v) => !v)}
+              title={allNotesExpanded ? 'Collapse' : 'Expand'}
+              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors p-1 rounded hover:bg-muted"
+            >
+              {allNotesExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </button>
             <Droppable droppableId="folder-all" isDropDisabled={false}>
               {(provided, snapshot) => (
                 <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1">
@@ -348,13 +371,25 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
             </button>
           </div>
 
-          {foldersLoading && (
+          {!allNotesExpanded && activeNoteFolderName && (
+            <button
+              onClick={() => setAllNotesExpanded(true)}
+              className="w-full flex items-center gap-2 px-2 py-1 pl-8 text-xs text-muted-foreground hover:text-foreground transition-colors truncate"
+              title="Expand folders"
+            >
+              <FolderIcon size={12} className="shrink-0" />
+              <span className="truncate">{activeNoteFolderName}</span>
+            </button>
+          )}
+
+          {allNotesExpanded && foldersLoading && (
             <div className="space-y-1.5 px-1 py-1 pl-4 animate-pulse">
               <div className="h-6 rounded bg-sidebar-accent/40 w-5/6" />
               <div className="h-6 rounded bg-sidebar-accent/40 w-2/3" />
             </div>
           )}
 
+          {allNotesExpanded && (
           <div className="pl-3 border-l border-border/40 ml-3.5 space-y-1">
           {rootFolders.map(folder => {
             const isExpanded = expandedFolders.has(folder.id);
@@ -462,6 +497,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
             );
           })}
           </div>
+          )}
         </div>
 
         {/* Tags */}
