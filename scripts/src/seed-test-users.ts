@@ -6,9 +6,10 @@
  *
  * Run with: pnpm --filter @workspace/scripts run seed-test-users
  */
-import { db, usersTable, notesTable } from "@workspace/db";
+import { db, usersTable, notesTable, plannerEntriesTable } from "@workspace/db";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
+import { format, addDays } from "date-fns";
 
 function generatePassword(): string {
   // 12 chars, letters+digits, avoiding visually ambiguous characters (0/O, 1/l/I).
@@ -79,8 +80,21 @@ async function main() {
       });
     }
 
+    const plannerItems = [
+      { offsetDays: 0, task: "Say hi in the AI chat" },
+      { offsetDays: 1, task: "Try a note style (paint-bucket icon)" },
+    ];
+    for (const [i, item] of plannerItems.entries()) {
+      await db.insert(plannerEntriesTable).values({
+        userId: user.id,
+        date: format(addDays(new Date(), item.offsetDays), "yyyy-MM-dd"),
+        task: item.task,
+        sortOrder: now + i,
+      });
+    }
+
     results.push({ email: u.email, password: u.password });
-    console.log(`Created ${u.email} with ${notes.length} sample notes.`);
+    console.log(`Created ${u.email} with ${notes.length} sample notes and ${plannerItems.length} Planner tasks.`);
   }
 
   console.log("\n=== Credentials to share (copy these now — not stored anywhere) ===");

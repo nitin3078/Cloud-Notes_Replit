@@ -7,12 +7,15 @@
     "hello": "tsx ./src/hello.ts",
     "seed": "tsx ./src/seed-sample-notes.ts",
     "seed-test-users": "tsx ./src/seed-test-users.ts",
+    "seed-planner": "tsx ./src/seed-planner.ts",
+    "seed-planner-guests": "tsx ./src/seed-planner-guests.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
     "drizzle-orm": "catalog:",
-    "bcryptjs": "^3.0.3"
+    "bcryptjs": "^3.0.3",
+    "date-fns": "^3.6.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",

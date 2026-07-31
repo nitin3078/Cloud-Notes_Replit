@@ -11,7 +11,7 @@ import Planner from '../components/Planner';
 import TaskTicker from '../components/TaskTicker';
 import HelpGuide from '../components/HelpGuide';
 import Login from './Login';
-import { Edit3 } from 'lucide-react';
+import { Edit3, HelpCircle } from 'lucide-react';
 import { Note, useListFolders } from '@workspace/api-client-react';
 
 function HomeContent() {
@@ -41,6 +41,13 @@ function HomeContent() {
 
   return (
     <div className="flex flex-col h-[100dvh] w-full overflow-hidden bg-background">
+      <button
+        onClick={() => { setPlannerOpen(false); setHelpOpen(true); }}
+        title="How to use Folio"
+        className="fixed top-3 right-3 z-50 w-8 h-8 rounded-full bg-card border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+      >
+        <HelpCircle size={16} />
+      </button>
       <TaskTicker onOpenPlanner={() => setPlannerOpen(true)} />
       <div className="flex flex-1 w-full overflow-hidden">
       <Sidebar
@@ -50,7 +57,6 @@ function HomeContent() {
         onCreateNote={handleCreateNote}
         onOpenChat={() => { setChatNoteId(null); setChatOpen(true); }}
         onOpenPlanner={() => { setHelpOpen(false); setPlannerOpen(true); }}
-        onOpenHelp={() => { setPlannerOpen(false); setHelpOpen(true); }}
         user={user}
         onLogout={logout}
       />
