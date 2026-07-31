@@ -297,7 +297,8 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
         </div>
       ) : (
       <>
-      <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-5 min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
+      <div className="py-4 flex flex-col gap-5">
         {/* Pinned — only shown when you actually have pinned notes; caps at
             ~3 visible rows and scrolls beyond that so it can't take over
             the sidebar. */}
@@ -502,8 +503,8 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
       </div>
 
       {/* Note List */}
-      <div className="h-[38%] shrink-0 border-t border-border/50 flex flex-col bg-background/50">
-        <div className="px-4 py-3 flex items-center justify-between border-b border-border/30 bg-sidebar/50">
+      <div className="border-t border-border/50 flex flex-col bg-background/50">
+        <div className="sticky top-0 z-10 px-4 py-3 flex items-center justify-between border-b border-border/30 bg-sidebar/95 backdrop-blur-sm">
           <div className="font-semibold text-sm">
             {selectedTag ? `#${selectedTag}` :
               selectedFolderId === 'all' ? 'All Notes' :
@@ -531,7 +532,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="p-2">
           {displayNotes.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground italic font-serif">
               {selectedFolderId === 'trash' ? 'Trash is empty.' : 'No notes here.'}
@@ -694,6 +695,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
               </Droppable>
           )}
         </div>
+      </div>
       </div>
       </>
       )}
