@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   Folder as FolderIcon, ChevronRight, ChevronDown, Plus,
   FileText, Pin, PinOff, Trash2, ArrowRight, GripVertical,
-  FolderPlus, RotateCcw, Flame, Sparkles, CalendarClock, Search, X, Tag as TagIcon
+  FolderPlus, RotateCcw, Flame, Sparkles, CalendarClock, Search, X, Tag as TagIcon, HelpCircle
 } from 'lucide-react';
 import {
   Folder, Note,
@@ -39,6 +39,7 @@ interface SidebarProps {
   onCreateNote: (defaultFolderId?: number | null) => void;
   onOpenChat: () => void;
   onOpenPlanner: () => void;
+  onOpenHelp: () => void;
   user: any;
   onLogout: () => void;
 }
@@ -48,7 +49,7 @@ function ColorDot({ color }: { color?: string | null }) {
   return <span className="w-2 h-2 rounded-full shrink-0 inline-block" style={{ backgroundColor: color }} />;
 }
 
-export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, onCreateNote, onOpenChat, onOpenPlanner, user, onLogout }: SidebarProps) {
+export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, onCreateNote, onOpenChat, onOpenPlanner, onOpenHelp, user, onLogout }: SidebarProps) {
   const queryClient = useQueryClient();
   const { activeTabId, unlockedNoteIds } = useTabs();
 
@@ -236,6 +237,13 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
         >
           <CalendarClock size={16} className="text-muted-foreground" />
           Planner
+        </button>
+        <button
+          onClick={onOpenHelp}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium hover:bg-sidebar-accent/50 transition-colors border border-transparent"
+        >
+          <HelpCircle size={16} className="text-muted-foreground" />
+          How to use Folio
         </button>
         <div className="relative">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />

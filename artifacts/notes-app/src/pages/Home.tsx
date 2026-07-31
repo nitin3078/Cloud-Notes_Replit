@@ -9,6 +9,7 @@ import CreateNoteModal from '../components/CreateNoteModal';
 import AiChatPanel from '../components/AiChatPanel';
 import Planner from '../components/Planner';
 import TaskTicker from '../components/TaskTicker';
+import HelpGuide from '../components/HelpGuide';
 import Login from './Login';
 import { Edit3 } from 'lucide-react';
 import { Note, useListFolders } from '@workspace/api-client-react';
@@ -22,6 +23,7 @@ function HomeContent() {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatNoteId, setChatNoteId] = useState<number | null>(null);
   const [plannerOpen, setPlannerOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const { activeTabId, openTab, unlockedNoteIds } = useTabs();
   const { data: folders = [] } = useListFolders();
@@ -47,7 +49,8 @@ function HomeContent() {
         onOpenNote={handleOpenNote}
         onCreateNote={handleCreateNote}
         onOpenChat={() => { setChatNoteId(null); setChatOpen(true); }}
-        onOpenPlanner={() => setPlannerOpen(true)}
+        onOpenPlanner={() => { setHelpOpen(false); setPlannerOpen(true); }}
+        onOpenHelp={() => { setPlannerOpen(false); setHelpOpen(true); }}
         user={user}
         onLogout={logout}
       />
@@ -55,6 +58,8 @@ function HomeContent() {
       <div className="flex-1 flex flex-col min-w-0 relative bg-background/50">
         {plannerOpen ? (
           <Planner onClose={() => setPlannerOpen(false)} />
+        ) : helpOpen ? (
+          <HelpGuide onClose={() => setHelpOpen(false)} />
         ) : (
           <>
             <TabBar
