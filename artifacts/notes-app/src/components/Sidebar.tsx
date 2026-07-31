@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Folder as FolderIcon, ChevronRight, ChevronDown, Plus,
@@ -73,24 +73,28 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
   const selectFolder = (id: number | 'all' | 'trash' | 'pinned') => {
     setSelectedTag(null);
     onSelectFolder(id);
+    if (id === 'all') setAllNotesExpanded(true);
+    else if (typeof id === 'number') setAllNotesExpanded(false);
   };
   const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
-  // The All Notes / folder tree starts expanded; opening a note collapses it
-  // automatically to a compact "which folder am I in" line, since you're no
-  // longer browsing — you can still expand it back manually at any time.
-  const [allNotesExpanded, setAllNotesExpanded] = useState(true);
-
-  useEffect(() => {
-    if (activeTabId) setAllNotesExpanded(false);
-  }, [activeTabId]);
+  // Collapsed by default so the folder tree takes minimal space and the
+  // actual note list sits close to the top. Expand via the caret to browse
+  // folders; picking a folder collapses it back down to a compact breadcrumb.
+  const [allNotesExpanded, setAllNotesExpanded] = useState(false);
   const [renamingFolderId, setRenamingFolderId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [colorPickerNoteId, setColorPickerNoteId] = useState<number | null>(null);
 
-  const activeNote = activeTabId ? allNotes.find((n) => n.id === activeTabId) : null;
-  const activeNoteFolderName = activeNote?.folderId
-    ? folders.find((f) => f.id === activeNote.folderId)?.name ?? null
-    : activeNote ? 'All Notes' : null;
+  // Breadcrumb for the collapsed view: walks up parentFolderId to build
+  // the full nested path, e.g. "Work / Q3 / Reports".
+  const selectedFolderPath: string[] = [];
+  if (typeof selectedFolderId === 'number') {
+    let current = folders.find((f) => f.id === selectedFolderId);
+    while (current) {
+      selectedFolderPath.unshift(current.name);
+      current = current.parentFolderId ? folders.find((f) => f.id === current!.parentFolderId) : undefined;
+    }
+  }
 
   const pinnedNotes = allNotes.filter(n => n.isPinned && !n.isDeleted).sort((a, b) =>
     sortBy === 'manual' ? a.sortOrder - b.sortOrder : new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
@@ -371,14 +375,14 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
             </button>
           </div>
 
-          {!allNotesExpanded && activeNoteFolderName && (
+          {!allNotesExpanded && selectedFolderPath.length > 0 && (
             <button
               onClick={() => setAllNotesExpanded(true)}
-              className="w-full flex items-center gap-2 px-2 py-1 pl-8 text-xs text-muted-foreground hover:text-foreground transition-colors truncate"
-              title="Expand folders"
+              className="w-full flex items-center gap-1 px-2 py-1 pl-8 text-xs text-muted-foreground hover:text-foreground transition-colors truncate"
+              title="Expand to pick a different folder"
             >
               <FolderIcon size={12} className="shrink-0" />
-              <span className="truncate">{activeNoteFolderName}</span>
+              <span className="truncate">{selectedFolderPath.join(' / ')}</span>
             </button>
           )}
 
