@@ -297,63 +297,64 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
         </div>
       ) : (
       <>
-      <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-6 min-h-0">
-        {/* Navigation */}
-        <div className="px-3 space-y-1">
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-2">Library</div>
-          {[
-            { id: 'all' as const, icon: FileText, label: 'All Notes' },
-            { id: 'pinned' as const, icon: Pin, label: 'Pinned' },
-            { id: 'trash' as const, icon: Trash2, label: 'Trash' },
-          ].map(({ id, icon: Icon, label }) => (
-            id === 'all' ? (
-              <Droppable key={id} droppableId="folder-all" isDropDisabled={false}>
-                {(provided, snapshot) => (
-                  <div ref={provided.innerRef} {...provided.droppableProps}>
-                    <button
-                      onClick={() => selectFolder(id)}
-                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors border ${
-                        snapshot.isDraggingOver ? 'bg-primary/10 border-primary/40' :
-                        selectedFolderId === id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium border-transparent' :
-                        'hover:bg-sidebar-accent/50 border-transparent'
-                      }`}
-                    >
-                      <Icon size={16} className="text-muted-foreground" />
-                      {label}
-                    </button>
-                    <div className="hidden">{provided.placeholder}</div>
-                  </div>
-                )}
-              </Droppable>
-            ) : (
-              <button
-                key={id}
-                onClick={() => selectFolder(id)}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${selectedFolderId === id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'hover:bg-sidebar-accent/50'}`}
-              >
-                <Icon size={16} className="text-muted-foreground" />
-                {label}
-              </button>
-            )
-          ))}
-        </div>
+      <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-5 min-h-0">
+        {/* Pinned — only shown when you actually have pinned notes; caps at
+            ~3 visible rows and scrolls beyond that so it can't take over
+            the sidebar. */}
+        {pinnedNotes.length > 0 && (
+          <div className="px-3 space-y-1">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1.5">Pinned</div>
+            <div className={`space-y-0.5 ${pinnedNotes.length > 3 ? 'max-h-[102px] overflow-y-auto' : ''}`}>
+              {pinnedNotes.map((note) => (
+                <button
+                  key={note.id}
+                  onClick={() => onOpenNote(note)}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors truncate ${
+                    activeTabId === note.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'hover:bg-sidebar-accent/50'
+                  }`}
+                >
+                  <Pin size={13} className="text-primary/70 shrink-0" />
+                  <span className="truncate">{note.title || 'Untitled Note'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-        {/* Folders */}
+        {/* All Notes + Folders — one unified tree, All Notes is the root */}
         <div className="px-3 space-y-1">
-          <div className="flex items-center justify-between px-2 mb-2">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Folders</div>
-            <button onClick={() => handleCreateFolder()} className="text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded hover:bg-muted">
+          <div className="flex items-center justify-between px-1 mb-1">
+            <Droppable droppableId="folder-all" isDropDisabled={false}>
+              {(provided, snapshot) => (
+                <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1">
+                  <button
+                    onClick={() => selectFolder('all')}
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm font-semibold transition-colors border ${
+                      snapshot.isDraggingOver ? 'bg-primary/10 border-primary/40' :
+                      selectedFolderId === 'all' ? 'bg-sidebar-accent text-sidebar-accent-foreground border-transparent' :
+                      'hover:bg-sidebar-accent/50 border-transparent'
+                    }`}
+                  >
+                    <FileText size={16} className="text-muted-foreground" />
+                    All Notes
+                  </button>
+                  <div className="hidden">{provided.placeholder}</div>
+                </div>
+              )}
+            </Droppable>
+            <button onClick={() => handleCreateFolder()} title="New folder" className="shrink-0 text-muted-foreground hover:text-foreground transition-colors p-1 rounded hover:bg-muted">
               <Plus size={14} />
             </button>
           </div>
 
           {foldersLoading && (
-            <div className="space-y-1.5 px-1 py-1 animate-pulse">
+            <div className="space-y-1.5 px-1 py-1 pl-4 animate-pulse">
               <div className="h-6 rounded bg-sidebar-accent/40 w-5/6" />
               <div className="h-6 rounded bg-sidebar-accent/40 w-2/3" />
             </div>
           )}
 
+          <div className="pl-3 border-l border-border/40 ml-3.5 space-y-1">
           {rootFolders.map(folder => {
             const isExpanded = expandedFolders.has(folder.id);
             const subfolders = folders.filter(f => f.parentFolderId === folder.id);
@@ -459,6 +460,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
               </div>
             );
           })}
+          </div>
         </div>
 
         {/* Tags */}
@@ -484,6 +486,19 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
             </div>
           </div>
         )}
+
+        {/* Trash — tucked at the bottom, out of the way */}
+        <div className="px-3 mt-auto pt-3 border-t border-border/40">
+          <button
+            onClick={() => selectFolder('trash')}
+            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${
+              selectedFolderId === 'trash' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground'
+            }`}
+          >
+            <Trash2 size={14} />
+            Trash
+          </button>
+        </div>
       </div>
 
       {/* Note List */}
