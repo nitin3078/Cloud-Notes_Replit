@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, and, desc } from "drizzle-orm";
-import { db, notesTable } from "@workspace/db";
+import { eq, and, desc, asc } from "drizzle-orm";
+import { db, notesTable, plannerEntriesTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -89,6 +89,25 @@ async function buildNotesContext(userId: string, noteId?: number): Promise<strin
   return context;
 }
 
+// Only pulled in for global (non-note-scoped) chat — a single-note Q&A
+// session is meant to be about just that note's own content.
+async function buildPlannerContext(userId: string): Promise<string> {
+  const entries = await db
+    .select()
+    .from(plannerEntriesTable)
+    .where(eq(plannerEntriesTable.userId, userId))
+    .orderBy(asc(plannerEntriesTable.date), asc(plannerEntriesTable.sortOrder));
+
+  if (entries.length === 0) return "";
+
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const lines = entries.map((e) => {
+    const label = e.date === todayKey ? `${e.date} (today)` : e.date;
+    return `- [${e.isDone ? "x" : " "}] ${label}: ${e.task}`;
+  });
+  return `Today's date is ${todayKey}.\n${lines.join("\n")}`;
+}
+
 // Ask the AI a question grounded in the user's notes
 router.post("/ai/chat", async (req, res): Promise<void> => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -104,38 +123,46 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
   const { message, history = [], noteId, allowGeneral } = parsed.data;
 
   const notesContext = await buildNotesContext(req.user.id, noteId);
-  if (!notesContext && !noteId && !allowGeneral) {
+  const plannerContext = noteId === undefined ? await buildPlannerContext(req.user.id) : "";
+  if (!notesContext && !plannerContext && !noteId && !allowGeneral) {
     res.json({
-      reply: "You don't have any notes yet, so I don't have anything to answer from. Create a note first, then ask me about it.",
+      reply: "You don't have any notes or planner entries yet, so I don't have anything to answer from. Create a note or add a planner task first, then ask me about it.",
     });
     return;
   }
+
+  const plannerBlock = plannerContext
+    ? `\n=== USER'S PLANNER (dated tasks, [x] = done) ===\n${plannerContext}\n=== END OF PLANNER ===\n`
+    : "";
 
   const systemPrompt = allowGeneral
     ? [
         "You are a helpful, knowledgeable general-purpose assistant embedded in a personal notes app called Folio.",
         "Answer the user's question using your own general knowledge. Be concise and accurate.",
-        "You may also use the following notes as extra context if relevant, but you are not limited to them.",
+        "You may also use the following notes and planner as extra context if relevant, but you are not limited to them.",
         "",
         "=== USER'S NOTES (optional context) ===",
         notesContext || "(none)",
         "=== END OF NOTES ===",
+        plannerBlock,
       ].join("\n")
     : [
         "You are a helpful assistant embedded in a personal notes app called Folio.",
-        "You can do two kinds of things: (1) answer questions using ONLY the notes provided below, and",
+        "You can do two kinds of things: (1) answer questions using ONLY the notes and planner provided below, and",
         "(2) when asked, DRAFT new content the user wants added to a note (a summary, a list, a rewrite, etc).",
         "Respond ONLY with JSON matching the required schema — no markdown fences, no extra text.",
-        "Set foundInNotes to false ONLY when the user asked a factual question and the notes don't contain",
-        "the answer; in that case 'reply' should briefly say so. Drafting requests (write/add/summarize/etc)",
-        "always count as foundInNotes: true, since you're generating the content, not looking it up.",
-        "When foundInNotes is true, write the actual answer or drafted content in 'reply' — concise, and",
-        "without meta-commentary like \"Here's a draft\" unless it's helpful context. Reference the relevant",
-        "note title(s) when useful for Q&A.",
+        "Set foundInNotes to false ONLY when the user asked a factual question and neither the notes nor the",
+        "planner contain the answer; in that case 'reply' should briefly say so. Drafting requests",
+        "(write/add/summarize/etc) always count as foundInNotes: true, since you're generating the content,",
+        "not looking it up. When foundInNotes is true, write the actual answer or drafted content in 'reply' —",
+        "concise, and without meta-commentary like \"Here's a draft\" unless it's helpful context. Reference the",
+        "relevant note title(s) when useful for Q&A. For planner questions (e.g. \"what's due today\"), use the",
+        "planner's dates directly — today's date is given in the planner section.",
         "",
         "=== USER'S NOTES ===",
         notesContext || "(this note is currently empty)",
         "=== END OF NOTES ===",
+        plannerBlock,
       ].join("\n");
 
   // Gemini uses "model" as the role name for prior assistant turns (not "assistant").
