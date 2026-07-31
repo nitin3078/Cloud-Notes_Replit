@@ -508,7 +508,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
         {tags.length > 0 && (
           <div className="px-3 space-y-1">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-2">Tags</div>
-            <div className="flex flex-wrap gap-1.5 px-2">
+            <div className={`flex flex-wrap gap-1.5 px-2 ${tags.length > 10 ? 'max-h-24 overflow-y-auto' : ''}`}>
               {tags.map((t) => (
                 <button
                   key={t.name}
@@ -527,19 +527,6 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
             </div>
           </div>
         )}
-
-        {/* Trash — tucked at the bottom, out of the way */}
-        <div className="px-3 mt-auto pt-3 border-t border-border/40">
-          <button
-            onClick={() => selectFolder('trash')}
-            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${
-              selectedFolderId === 'trash' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground'
-            }`}
-          >
-            <Trash2 size={14} />
-            Trash
-          </button>
-        </div>
       </div>
 
       {/* Note List */}
@@ -739,6 +726,20 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
       </div>
       </>
       )}
+
+      {/* Trash — a fixed footer, always visible, never part of the scroll,
+          so it doesn't take space away from the note list above it. */}
+      <div className="shrink-0 px-3 py-2 border-t border-border/40 bg-sidebar">
+        <button
+          onClick={() => selectFolder('trash')}
+          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${
+            selectedFolderId === 'trash' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground'
+          }`}
+        >
+          <Trash2 size={14} />
+          Trash
+        </button>
+      </div>
     </DragDropContext>
     </div>
   );
