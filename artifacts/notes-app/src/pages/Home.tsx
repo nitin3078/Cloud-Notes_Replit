@@ -8,6 +8,7 @@ import VersionHistory from '../components/VersionHistory';
 import CreateNoteModal from '../components/CreateNoteModal';
 import AiChatPanel from '../components/AiChatPanel';
 import Planner from '../components/Planner';
+import TaskTicker from '../components/TaskTicker';
 import Login from './Login';
 import { Edit3 } from 'lucide-react';
 import { Note, useListFolders } from '@workspace/api-client-react';
@@ -37,7 +38,9 @@ function HomeContent() {
   };
 
   return (
-    <div className="flex h-[100dvh] w-full overflow-hidden bg-background">
+    <div className="flex flex-col h-[100dvh] w-full overflow-hidden bg-background">
+      <TaskTicker onOpenPlanner={() => setPlannerOpen(true)} />
+      <div className="flex flex-1 w-full overflow-hidden">
       <Sidebar
         selectedFolderId={selectedFolderId}
         onSelectFolder={setSelectedFolderId}
@@ -122,6 +125,7 @@ function HomeContent() {
           setCreateModalOpen(false);
         }}
       />
+      </div>
     </div>
   );
 }

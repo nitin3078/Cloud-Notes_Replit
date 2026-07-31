@@ -623,3 +623,13 @@
 .note-style-terminal .ql-editor.ql-blank::before {
   color: rgba(57, 255, 136, 0.4) !important;
 }
+
+/* Today's-tasks ticker (top bar) — scrolls one full copy-width left, then
+   resets; content is rendered twice back-to-back so the reset is seamless. */
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.animate-ticker {
+  animation: ticker-scroll 18s linear infinite;
+}
