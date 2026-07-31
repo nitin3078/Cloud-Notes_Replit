@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Folder as FolderIcon, ChevronRight, ChevronDown, Plus,
   FileText, Pin, PinOff, Trash2, ArrowRight, GripVertical,
@@ -62,6 +63,12 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const { data: tags = [] } = useListTags();
+  // Hover preview is rendered via a portal at fixed screen coordinates
+  // (captured on mouseenter) rather than a CSS-only absolute box, since the
+  // sidebar is narrow and a same-context absolute box was getting clipped by
+  // the note list's own scroll container — invisible even though hover
+  // itself (and the cursor) was working correctly.
+  const [hoverPreview, setHoverPreview] = useState<{ noteId: number; top: number; left: number } | null>(null);
 
   const selectFolder = (id: number | 'all' | 'trash' | 'pinned') => {
     setSelectedTag(null);
@@ -536,6 +543,11 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                                   {...provided.draggableProps}
                                   {...(!isDragDisabled ? provided.dragHandleProps : {})}
                                   onClick={() => onOpenNote(note)}
+                                  onMouseEnter={(e) => {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setHoverPreview({ noteId: note.id, top: rect.top, left: rect.right + 8 });
+                                  }}
+                                  onMouseLeave={() => setHoverPreview((cur) => (cur?.noteId === note.id ? null : cur))}
                                   className={`relative group flex flex-col p-3 rounded-md cursor-pointer transition-colors border ${
                                     activeTabId === note.id
                                       ? 'bg-card border-primary/20 shadow-sm'
@@ -566,17 +578,19 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                                       : note.content ? htmlToPlainText(note.content).substring(0, 80) : 'No content...'}
                                   </div>
 
-                                  {/* Hover preview — plain CSS, no JS pointer listeners, so it can't
-                                      interfere with @hello-pangea/dnd's own pointer-based drag sensor
-                                      the way a Radix Tooltip (which dismisses on pointerdown) can. */}
-                                  {!snapshot.isDragging && (
-                                    <div className="hidden group-hover:block absolute left-full top-0 ml-2 z-50 w-64 max-h-64 overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md px-3 py-2 pointer-events-none">
-                                      <p className="font-semibold font-serif mb-1 text-sm">{note.title || 'Untitled Note'}</p>
-                                      <p className="text-xs leading-relaxed whitespace-pre-wrap">{previewText}</p>
-                                    </div>
-                                  )}
                                 </div>
                               </ContextMenuTrigger>
+
+                              {!snapshot.isDragging && hoverPreview?.noteId === note.id && createPortal(
+                                <div
+                                  className="fixed z-50 w-64 max-h-64 overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md px-3 py-2 pointer-events-none"
+                                  style={{ top: hoverPreview.top, left: hoverPreview.left }}
+                                >
+                                  <p className="font-semibold font-serif mb-1 text-sm">{note.title || 'Untitled Note'}</p>
+                                  <p className="text-xs leading-relaxed whitespace-pre-wrap">{previewText}</p>
+                                </div>,
+                                document.body
+                              )}
 
                               <ContextMenuContent className="w-52">
                                 {note.isDeleted ? (
