@@ -74,7 +74,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
     setSelectedTag(null);
     onSelectFolder(id);
     if (id === 'all') setAllNotesExpanded(true);
-    else if (typeof id === 'number') setAllNotesExpanded(false);
+    else setAllNotesExpanded(false);
   };
   const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
   // Collapsed by default so the folder tree takes minimal space and the
@@ -276,7 +276,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
       </div>
 
       {isSearching ? (
-        <div className="flex-1 overflow-y-auto p-2 min-h-0">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-2 min-h-0">
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2">
             {searchResults.length} result{searchResults.length === 1 ? '' : 's'}
           </div>
@@ -314,7 +314,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
         </div>
       ) : (
       <>
-      <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
+      <div className="flex-1 overflow-y-auto overscroll-contain min-h-0 flex flex-col">
       <div className="py-4 flex flex-col gap-5">
         {/* Pinned — only shown when you actually have pinned notes; caps at
             ~3 visible rows and scrolls beyond that so it can't take over
