@@ -563,7 +563,14 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
             {taggedNotes.length === 0 ? (
               <p className="px-2 py-2 text-xs text-muted-foreground italic">No notes with this tag.</p>
             ) : (
-              taggedNotes.map((note, i) => renderNoteRow(note, i, 0, true))
+              <Droppable droppableId="notes-tagged">
+                {(provided) => (
+                  <div ref={provided.innerRef} {...provided.droppableProps}>
+                    {taggedNotes.map((note, i) => renderNoteRow(note, i, 0, true))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
             )}
           </div>
         )}
@@ -630,7 +637,14 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
             {trashedNotes.length === 0 ? (
               <p className="px-2 py-2 text-xs text-muted-foreground italic">Trash is empty.</p>
             ) : (
-              trashedNotes.map((note, i) => renderNoteRow(note, i, 0, true))
+              <Droppable droppableId="notes-trash">
+                {(provided) => (
+                  <div ref={provided.innerRef} {...provided.droppableProps}>
+                    {trashedNotes.map((note, i) => renderNoteRow(note, i, 0, true))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
             )}
           </div>
         )}
