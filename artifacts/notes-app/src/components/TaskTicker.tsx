@@ -29,11 +29,11 @@ export default function TaskTicker({ onOpenPlanner }: TaskTickerProps) {
   const items = selectedDay === 'today' ? todayItems : tomorrowItems;
 
   return (
-    <div className="h-9 shrink-0 bg-amber-100 border-b border-amber-300 flex items-center overflow-hidden pr-11">
+    <div className="h-9 shrink-0 bg-blue-100 border-b border-blue-300 flex items-center overflow-hidden pr-11">
       <button
         onClick={onOpenPlanner}
         title="Open Planner"
-        className="shrink-0 h-full flex items-center px-2.5 hover:bg-amber-200/60 transition-colors text-amber-800"
+        className="shrink-0 h-full flex items-center px-2.5 hover:bg-blue-200/60 transition-colors text-blue-800"
       >
         <CalendarClock size={13} />
       </button>
@@ -42,15 +42,15 @@ export default function TaskTicker({ onOpenPlanner }: TaskTickerProps) {
         <button
           onClick={() => setSelectedDay('today')}
           className={`px-3 transition-colors whitespace-nowrap ${
-            selectedDay === 'today' ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-200/60'
+            selectedDay === 'today' ? 'bg-blue-500 text-white' : 'text-blue-800 hover:bg-blue-200/60'
           }`}
         >
           Today
         </button>
         <button
           onClick={() => setSelectedDay('tomorrow')}
-          className={`px-3 transition-colors whitespace-nowrap border-l border-amber-300 ${
-            selectedDay === 'tomorrow' ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-200/60'
+          className={`px-3 transition-colors whitespace-nowrap border-l border-blue-300 ${
+            selectedDay === 'tomorrow' ? 'bg-blue-500 text-white' : 'text-blue-800 hover:bg-blue-200/60'
           }`}
         >
           Tomorrow
@@ -71,8 +71,8 @@ export default function TaskTicker({ onOpenPlanner }: TaskTickerProps) {
             {[0, 1].map((copy) => (
               <div key={copy} className="flex items-center gap-10">
                 {items.map((item) => (
-                  <span key={`${copy}-${item.id}`} className="text-sm text-amber-950 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-600 shrink-0" />
+                  <span key={`${copy}-${item.id}`} className="text-sm text-blue-950 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
                     {item.task}
                   </span>
                 ))}
@@ -85,7 +85,7 @@ export default function TaskTicker({ onOpenPlanner }: TaskTickerProps) {
       <button
         onClick={() => setPaused((p) => !p)}
         title={paused ? 'Resume' : 'Pause'}
-        className="shrink-0 h-full flex items-center justify-center w-9 hover:bg-amber-200/60 transition-colors text-amber-800"
+        className="shrink-0 h-full flex items-center justify-center w-9 hover:bg-blue-200/60 transition-colors text-blue-800"
       >
         {paused ? <Play size={13} /> : <Pause size={13} />}
       </button>
