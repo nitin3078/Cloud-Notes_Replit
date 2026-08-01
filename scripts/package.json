@@ -9,6 +9,7 @@
     "seed-test-users": "tsx ./src/seed-test-users.ts",
     "seed-planner": "tsx ./src/seed-planner.ts",
     "seed-planner-guests": "tsx ./src/seed-planner-guests.ts",
+    "seed-diagnostic-user": "tsx ./src/seed-diagnostic-user.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
