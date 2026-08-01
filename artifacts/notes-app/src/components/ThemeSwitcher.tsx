@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Palette, Check, Paintbrush } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,13 @@ import { useTheme } from '../lib/ThemeContext';
 
 export default function ThemeSwitcher() {
   const { themeId, setThemeId, customColors, setCustomColors } = useTheme();
+  // A native <input type="color"> opens the OS/browser's own color picker,
+  // which renders outside our React DOM entirely — Radix's outside-click
+  // detection can't see it as "inside" the popover, so without a guard,
+  // interacting with it closes the popover before a color can be picked.
+  // Tracking focus directly is more reliable across browsers than trying
+  // to inspect the interact-outside event's target.
+  const colorInputFocused = useRef(false);
 
   return (
     <Popover>
@@ -21,7 +28,16 @@ export default function ThemeSwitcher() {
           <Palette size={16} />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-64 p-2">
+      <PopoverContent
+        align="end"
+        className="w-64 p-2"
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement;
+          if (colorInputFocused.current || target?.closest('input[type="color"]')) {
+            e.preventDefault();
+          }
+        }}
+      >
         <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
           Theme
         </div>
@@ -73,16 +89,19 @@ export default function ThemeSwitcher() {
               label="Background"
               value={customColors.background}
               onChange={(background) => setCustomColors({ ...customColors, background })}
+              focusRef={colorInputFocused}
             />
             <ColorField
               label="Accent"
               value={customColors.accent}
               onChange={(accent) => setCustomColors({ ...customColors, accent })}
+              focusRef={colorInputFocused}
             />
             <ColorField
               label="Text"
               value={customColors.text}
               onChange={(text) => setCustomColors({ ...customColors, text })}
+              focusRef={colorInputFocused}
             />
           </div>
         )}
@@ -91,7 +110,7 @@ export default function ThemeSwitcher() {
   );
 }
 
-function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (hex: string) => void }) {
+function ColorField({ label, value, onChange, focusRef }: { label: string; value: string; onChange: (hex: string) => void; focusRef: React.MutableRefObject<boolean> }) {
   return (
     <label className="flex items-center justify-between gap-2 text-xs">
       <span className="text-muted-foreground">{label}</span>
@@ -100,6 +119,13 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
           type="color"
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onFocus={() => { focusRef.current = true; }}
+          onBlur={() => {
+            // Small delay: the popover's outside-click check can fire in the
+            // brief window between this blur and focus actually leaving the
+            // whole popover (e.g. moving to another color field).
+            setTimeout(() => { focusRef.current = false; }, 200);
+          }}
           className="h-6 w-8 rounded border border-border/50 cursor-pointer bg-transparent p-0"
         />
         <span className="font-mono text-muted-foreground/70 w-14">{value.toUpperCase()}</span>

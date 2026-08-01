@@ -253,6 +253,10 @@ export default function Editor({ noteId, onOpenHistory, onOpenChat }: EditorProp
       onSuccess: () => {
         queryClient.setQueryData(getGetNoteQueryKey(noteId), (old: any) => old ? { ...old, tags: updated } : old);
         queryClient.invalidateQueries({ queryKey: getListTagsQueryKey() });
+        // Sidebar's tag-filter view reads tags off the notes list itself
+        // (not the single-note cache above), so without this it kept
+        // showing "no notes" for a just-added tag until a manual refresh.
+        queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
       }
     });
   };
