@@ -29,7 +29,8 @@ export default function TaskTicker({ onOpenPlanner }: TaskTickerProps) {
   const items = selectedDay === 'today' ? todayItems : tomorrowItems;
 
   return (
-    <div className="h-9 shrink-0 bg-blue-50 border-b border-blue-200 flex items-center overflow-hidden pr-11">
+    <div className="h-9 shrink-0 bg-blue-50 border-b border-blue-200 flex items-center overflow-hidden pr-11 font-sans">
+      <span className="shrink-0 pl-2 pr-1 text-base select-none" title="Today's tasks">👉</span>
       <button
         onClick={onOpenPlanner}
         title="Open Planner"
