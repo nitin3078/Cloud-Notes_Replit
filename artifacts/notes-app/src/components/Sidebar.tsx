@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Folder as FolderIcon, ChevronRight, ChevronDown, Plus,
-  FileText, Pin, PinOff, Trash2, ArrowRight, GripVertical,
-  FolderPlus, RotateCcw, Flame, Sparkles, CalendarClock, Search, X, Tag as TagIcon
+  Pin, PinOff, Trash2, ArrowRight, GripVertical,
+  FolderPlus, RotateCcw, Flame, Sparkles, CalendarClock, Search, X, Lock,
 } from 'lucide-react';
 import {
   Folder, Note,
@@ -20,7 +20,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { NOTE_COLORS } from '../lib/noteColors';
 import { htmlToPlainText } from '../lib/htmlToPlainText';
-import ColorPicker from './ColorPicker';
 import ThemeSwitcher from './ThemeSwitcher';
 
 import {
@@ -28,9 +27,6 @@ import {
   ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent,
   ContextMenuSubTrigger, ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import {
-  Popover, PopoverContent, PopoverTrigger,
-} from '@/components/ui/popover';
 
 interface SidebarProps {
   selectedFolderId: number | 'all' | 'trash' | 'pinned';
@@ -53,65 +49,38 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
   const { activeTabId, unlockedNoteIds } = useTabs();
 
   const { data: folders = [], isLoading: foldersLoading } = useListFolders();
-  const { data: notes = [] } = useListNotes({
-    folderId: typeof selectedFolderId === 'number' ? selectedFolderId : undefined,
-    deleted: selectedFolderId === 'trash' ? true : undefined,
-  });
   const { data: allNotes = [] } = useListNotes();
+  const { data: tags = [] } = useListTags();
 
-  const [sortBy, setSortBy] = useState<'manual' | 'updatedAt'>('manual');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const { data: tags = [] } = useListTags();
-  // Hover preview is rendered via a portal at fixed screen coordinates
-  // (captured on mouseenter) rather than a CSS-only absolute box, since the
-  // sidebar is narrow and a same-context absolute box was getting clipped by
-  // the note list's own scroll container — invisible even though hover
-  // itself (and the cursor) was working correctly.
-  const [hoverPreview, setHoverPreview] = useState<{ noteId: number; top: number; left: number } | null>(null);
-
-  const selectFolder = (id: number | 'all' | 'trash' | 'pinned') => {
-    setSelectedTag(null);
-    onSelectFolder(id);
-    if (id === 'all') setAllNotesExpanded(true);
-    else setAllNotesExpanded(false);
-  };
   const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
-  // Collapsed by default so the folder tree takes minimal space and the
-  // actual note list sits close to the top. Expand via the caret to browse
-  // folders; picking a folder collapses it back down to a compact breadcrumb.
-  const [allNotesExpanded, setAllNotesExpanded] = useState(false);
+  const [trashExpanded, setTrashExpanded] = useState(false);
   const [renamingFolderId, setRenamingFolderId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
-  const [colorPickerNoteId, setColorPickerNoteId] = useState<number | null>(null);
+  // Hover preview is rendered via a portal at fixed screen coordinates
+  // (captured on mouseenter) rather than a CSS-only absolute box, since the
+  // sidebar is narrow and a same-context absolute box gets clipped by its
+  // own scroll container — invisible even though hover itself still works.
+  const [hoverPreview, setHoverPreview] = useState<{ noteId: number; top: number; left: number } | null>(null);
 
-  // Breadcrumb for the collapsed view: walks up parentFolderId to build
-  // the full nested path, e.g. "Work / Q3 / Reports".
-  const selectedFolderPath: string[] = [];
-  if (typeof selectedFolderId === 'number') {
-    let current = folders.find((f) => f.id === selectedFolderId);
-    while (current) {
-      selectedFolderPath.unshift(current.name);
-      current = current.parentFolderId ? folders.find((f) => f.id === current!.parentFolderId) : undefined;
-    }
+  const activeAllNotes = allNotes.filter((n) => !n.isDeleted).sort((a, b) => a.sortOrder - b.sortOrder);
+  const trashedNotes = allNotes.filter((n) => n.isDeleted).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  const pinnedNotes = activeAllNotes.filter((n) => n.isPinned);
+
+  // Group active notes by folder (null = unfiled, sits at the tree root)
+  // for the unified folder+notes tree.
+  const notesByFolder = new Map<number | null, Note[]>();
+  for (const n of activeAllNotes) {
+    const key = n.folderId ?? null;
+    if (!notesByFolder.has(key)) notesByFolder.set(key, []);
+    notesByFolder.get(key)!.push(n);
   }
 
-  const pinnedNotes = allNotes.filter(n => n.isPinned && !n.isDeleted).sort((a, b) =>
-    sortBy === 'manual' ? a.sortOrder - b.sortOrder : new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-  );
-  const activeNotes = notes.filter(n => !n.isDeleted).sort((a, b) =>
-    sortBy === 'manual' ? a.sortOrder - b.sortOrder : new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-  );
-  const trashedNotes = notes.filter(n => n.isDeleted).sort((a, b) =>
-    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-  );
   const taggedNotes = selectedTag
-    ? allNotes.filter((n) => !n.isDeleted && (n.tags ?? []).includes(selectedTag))
+    ? activeAllNotes.filter((n) => (n.tags ?? []).includes(selectedTag))
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     : [];
-  const displayNotes = selectedTag ? taggedNotes :
-    selectedFolderId === 'trash' ? trashedNotes :
-    selectedFolderId === 'pinned' ? pinnedNotes : activeNotes;
 
   const trimmedQuery = searchQuery.trim().toLowerCase();
   const isSearching = trimmedQuery.length > 0;
@@ -145,7 +114,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
   const invalidateFolders = () => queryClient.invalidateQueries({ queryKey: ['/api/folders'] });
 
   const toggleFolder = (id: number) => {
-    setExpandedFolders(prev => {
+    setExpandedFolders((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
@@ -158,9 +127,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
       createFolder.mutate({ data: { name: name.trim(), parentFolderId: parentFolderId ?? null } }, {
         onSuccess: () => {
           invalidateFolders();
-          if (parentFolderId) {
-            setExpandedFolders(prev => new Set([...prev, parentFolderId]));
-          }
+          if (parentFolderId) setExpandedFolders((prev) => new Set([...prev, parentFolderId]));
         }
       });
     }
@@ -173,9 +140,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
 
   const submitRename = (folderId: number) => {
     if (renameValue.trim()) {
-      updateFolder.mutate({ id: folderId, data: { name: renameValue.trim() } }, {
-        onSuccess: invalidateFolders
-      });
+      updateFolder.mutate({ id: folderId, data: { name: renameValue.trim() } }, { onSuccess: invalidateFolders });
     }
     setRenamingFolderId(null);
   };
@@ -186,11 +151,15 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
     }
   };
 
+  const handleSetColor = (noteId: number, color: string | null) => {
+    updateNote.mutate({ id: noteId, data: { color } }, { onSuccess: invalidateNotes });
+  };
+
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     const { droppableId: destId } = result.destination;
 
-    // Dropped onto a folder (or "All Notes" / library root) in the tree — move it there.
+    // Dropped onto a folder (or "All Notes" root) header — move it there.
     if (destId.startsWith('folder-')) {
       const noteId = parseInt(result.draggableId, 10);
       const target = destId.replace('folder-', '');
@@ -199,26 +168,250 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
       return;
     }
 
-    // Otherwise, reordering within the current note list. Skip while viewing "All
-    // Notes" — dragging there is only meant for moving notes into a folder, since
-    // sortOrder reordering across mixed folders isn't a coherent operation.
-    if (selectedFolderId === 'all') return;
-    const sourceIndex = result.source.index;
-    const destIndex = result.destination.index;
-    if (sourceIndex === destIndex) return;
-    const items = Array.from(displayNotes);
-    const [reorderedItem] = items.splice(sourceIndex, 1);
-    items.splice(destIndex, 0, reorderedItem);
-    const newItems = items.map((item, index) => ({ id: item.id, sortOrder: index }));
-    reorderNotes.mutate({ data: { items: newItems } }, { onSuccess: invalidateNotes });
+    // Otherwise, reordering within one folder's own note group (or the
+    // unfiled/root group) — scoped per group, not a single global list.
+    if (destId.startsWith('notes-in-')) {
+      const groupKey = destId.replace('notes-in-', '');
+      const folderId = groupKey === 'root' ? null : parseInt(groupKey, 10);
+      const group = notesByFolder.get(folderId) ?? [];
+      const sourceIndex = result.source.index;
+      const destIndex = result.destination.index;
+      if (sourceIndex === destIndex) return;
+      const items = Array.from(group);
+      const [moved] = items.splice(sourceIndex, 1);
+      items.splice(destIndex, 0, moved);
+      const newItems = items.map((item, index) => ({ id: item.id, sortOrder: index }));
+      reorderNotes.mutate({ data: { items: newItems } }, { onSuccess: invalidateNotes });
+    }
   };
 
-  const handleSetColor = (noteId: number, color: string | null) => {
-    updateNote.mutate({ id: noteId, data: { color } }, { onSuccess: invalidateNotes });
-    setColorPickerNoteId(null);
-  };
+  const rootFolders = folders.filter((f) => !f.parentFolderId);
 
-  const rootFolders = folders.filter(f => !f.parentFolderId);
+  // A single note row — used for root-level notes, folder-nested notes, and
+  // trash rows alike, so drag/context-menu/hover-preview behavior stays
+  // identical everywhere a note appears.
+  function renderNoteRow(note: Note, index: number, depth: number, isDragDisabled: boolean) {
+    const isUnlockedForDisplay = !note.isLocked || unlockedNoteIds.has(note.id);
+    const previewText = !isUnlockedForDisplay
+      ? 'This note is password-protected.'
+      : note.content ? htmlToPlainText(note.content) || 'No content yet.' : 'No content yet.';
+    const previewLine = !isUnlockedForDisplay
+      ? '🔒 Locked'
+      : note.content ? htmlToPlainText(note.content).substring(0, 60) : '';
+
+    return (
+      <Draggable key={note.id} draggableId={note.id.toString()} index={index} isDragDisabled={isDragDisabled}>
+        {(provided, snapshot) => (
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <div
+                ref={provided.innerRef}
+                {...provided.draggableProps}
+                {...(!isDragDisabled ? provided.dragHandleProps : {})}
+                onClick={() => onOpenNote(note)}
+                onMouseEnter={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setHoverPreview({ noteId: note.id, top: rect.top, left: rect.right + 8 });
+                }}
+                onMouseLeave={() => setHoverPreview((cur) => (cur?.noteId === note.id ? null : cur))}
+                style={{ paddingLeft: `${depth * 18 + 8}px`, ...(note.color ? { borderLeftColor: note.color, borderLeftWidth: '3px' } : {}) }}
+                className={`relative group flex flex-col pr-2 py-1.5 rounded-md cursor-pointer transition-colors border ${
+                  activeTabId === note.id
+                    ? 'bg-primary/10 border-l-2 border-primary'
+                    : snapshot.isDragging
+                    ? 'bg-card shadow-lg border-primary/50'
+                    : 'bg-transparent border-transparent hover:bg-sidebar-accent/60'
+                }`}
+              >
+                <div className="flex items-center gap-1.5">
+                  {!isDragDisabled && (
+                    <GripVertical size={12} className="opacity-0 group-hover:opacity-100 text-muted-foreground/50 shrink-0 transition-opacity" />
+                  )}
+                  <ColorDot color={note.color} />
+                  <span className={`text-sm truncate flex-1 ${activeTabId === note.id ? 'font-semibold text-foreground' : 'text-foreground/90'}`}>
+                    {note.title || 'Untitled Note'}
+                  </span>
+                  {note.isLocked && <Lock size={11} className="text-muted-foreground/60 shrink-0" />}
+                  {note.isPinned && <Pin size={11} className="text-primary opacity-70 shrink-0" />}
+                </div>
+                {previewLine && (
+                  <div className="text-xs text-muted-foreground truncate opacity-70 mt-0.5" style={{ paddingLeft: !isDragDisabled ? '18px' : '0' }}>
+                    {previewLine}
+                  </div>
+                )}
+              </div>
+            </ContextMenuTrigger>
+
+            {!snapshot.isDragging && hoverPreview?.noteId === note.id && createPortal(
+              <div
+                className="fixed z-50 w-64 max-h-64 overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md px-3 py-2 pointer-events-none"
+                style={{ top: hoverPreview.top, left: hoverPreview.left }}
+              >
+                <p className="font-semibold font-serif mb-1 text-sm">{note.title || 'Untitled Note'}</p>
+                <p className="text-xs leading-relaxed whitespace-pre-wrap">{previewText}</p>
+              </div>,
+              document.body
+            )}
+
+            <ContextMenuContent className="w-52">
+              {note.isDeleted ? (
+                <>
+                  <ContextMenuItem onClick={() => restoreNote.mutate({ id: note.id }, { onSuccess: invalidateNotes })}>
+                    <RotateCcw size={14} className="mr-2" /> Restore Note
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => { if (confirm('Permanently delete this note?')) purgeNote.mutate({ id: note.id }, { onSuccess: invalidateNotes }); }}
+                  >
+                    <Flame size={14} className="mr-2" /> Delete Forever
+                  </ContextMenuItem>
+                </>
+              ) : (
+                <>
+                  <ContextMenuItem onClick={() => {
+                    note.isPinned
+                      ? unpinNote.mutate({ id: note.id }, { onSuccess: invalidateNotes })
+                      : pinNote.mutate({ id: note.id }, { onSuccess: invalidateNotes });
+                  }}>
+                    {note.isPinned ? <><PinOff size={14} className="mr-2" /> Unpin</> : <><Pin size={14} className="mr-2" /> Pin Note</>}
+                  </ContextMenuItem>
+
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>
+                      <ColorDot color={note.color} />
+                      <span className="ml-2">Set Color</span>
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="p-2 w-auto">
+                      <div className="flex gap-1.5 flex-wrap max-w-[160px]">
+                        {NOTE_COLORS.map((c) => (
+                          <button
+                            key={c.value ?? 'none'}
+                            title={c.label}
+                            onClick={() => handleSetColor(note.id, c.value)}
+                            className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 ${note.color === c.value ? 'border-foreground/60 scale-110' : 'border-transparent'}`}
+                            style={{ backgroundColor: c.dot }}
+                          />
+                        ))}
+                      </div>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>
+                      <ArrowRight size={14} className="mr-2" /> Move to...
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-48">
+                      <ContextMenuItem onClick={() => moveNote.mutate({ id: note.id, data: { folderId: null } }, { onSuccess: invalidateNotes })}>
+                        All Notes
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      {folders.map((f) => (
+                        <ContextMenuItem key={f.id} onClick={() => moveNote.mutate({ id: note.id, data: { folderId: f.id } }, { onSuccess: invalidateNotes })}>
+                          {f.parentFolderId ? '  └ ' : ''}{f.name}
+                        </ContextMenuItem>
+                      ))}
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+
+                  <ContextMenuSeparator />
+                  <ContextMenuItem className="text-destructive focus:text-destructive" onClick={() => deleteNote.mutate({ id: note.id }, { onSuccess: invalidateNotes })}>
+                    <Trash2 size={14} className="mr-2" /> Move to Trash
+                  </ContextMenuItem>
+                </>
+              )}
+            </ContextMenuContent>
+          </ContextMenu>
+        )}
+      </Draggable>
+    );
+  }
+
+  // A folder node — renders its own row, then (if expanded) its subfolders
+  // recursively followed by its own direct notes, all indented by depth.
+  function renderFolderNode(folder: Folder, depth: number): React.ReactNode {
+    const isExpanded = expandedFolders.has(folder.id);
+    const subfolders = folders.filter((f) => f.parentFolderId === folder.id);
+    const folderNotes = notesByFolder.get(folder.id) ?? [];
+    const hasChildren = subfolders.length > 0 || folderNotes.length > 0;
+
+    return (
+      <div key={folder.id}>
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <div className="flex items-center" style={{ paddingLeft: `${depth * 18}px` }}>
+              <button
+                onClick={() => hasChildren && toggleFolder(folder.id)}
+                className="p-1 -mr-0.5 text-muted-foreground hover:text-foreground shrink-0"
+              >
+                {hasChildren ? (isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />) : <span className="block w-3.5" />}
+              </button>
+
+              {renamingFolderId === folder.id ? (
+                <input
+                  autoFocus
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onBlur={() => submitRename(folder.id)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') submitRename(folder.id); if (e.key === 'Escape') setRenamingFolderId(null); }}
+                  className="flex-1 px-2 py-1 text-sm bg-background border border-primary rounded outline-none"
+                />
+              ) : (
+                <Droppable droppableId={`folder-${folder.id}`} isDropDisabled={false}>
+                  {(provided, snapshot) => (
+                    <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1">
+                      <button
+                        onClick={() => toggleFolder(folder.id)}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm font-medium transition-colors border ${
+                          snapshot.isDraggingOver ? 'bg-primary/10 border-primary/40' : 'hover:bg-sidebar-accent/50 border-transparent'
+                        }`}
+                      >
+                        <FolderIcon size={14} className="text-muted-foreground fill-current opacity-20 shrink-0" />
+                        <span className="flex-1 text-left truncate">{folder.name}</span>
+                        {folderNotes.length > 0 && <span className="text-xs text-muted-foreground shrink-0">{folderNotes.length}</span>}
+                      </button>
+                      <div className="hidden">{provided.placeholder}</div>
+                    </div>
+                  )}
+                </Droppable>
+              )}
+            </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent className="w-48">
+            <ContextMenuItem onClick={() => handleCreateFolder(folder.id)}>
+              <FolderPlus size={14} className="mr-2" /> New Subfolder
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => onCreateNote(folder.id)}>
+              <Plus size={14} className="mr-2" /> New Note Here
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={() => startRename(folder)}>Rename</ContextMenuItem>
+            <ContextMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDeleteFolder(folder.id)}>
+              <Trash2 size={14} className="mr-2" /> Delete Folder
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+
+        {isExpanded && (
+          <>
+            {subfolders.map((sub) => renderFolderNode(sub, depth + 1))}
+            {folderNotes.length > 0 && (
+              <Droppable droppableId={`notes-in-${folder.id}`}>
+                {(provided) => (
+                  <div ref={provided.innerRef} {...provided.droppableProps}>
+                    {folderNotes.map((note, i) => renderNoteRow(note, i, depth + 1, false))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  const rootNotes = notesByFolder.get(null) ?? [];
 
   return (
     <div className="w-72 h-full bg-sidebar flex flex-col border-r border-border text-sidebar-foreground">
@@ -240,6 +433,21 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
       </div>
 
       <div className="px-3 pt-3 flex flex-col gap-2">
+        <div className="relative">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search notes…"
+            className="w-full h-9 rounded-md border border-input bg-background pl-8 pr-8 text-sm outline-none focus:ring-1 focus:ring-ring"
+          />
+          {searchQuery && (
+            <button type="button" onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground">
+              <X size={14} />
+            </button>
+          )}
+        </div>
         <button
           onClick={onOpenChat}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-primary/10 text-primary hover:bg-primary/15 transition-colors border border-primary/20"
@@ -254,25 +462,6 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
           <CalendarClock size={16} className="text-muted-foreground" />
           Planner
         </button>
-        <div className="relative">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search notes…"
-            className="w-full h-9 rounded-md border border-input bg-background pl-8 pr-8 text-sm outline-none focus:ring-1 focus:ring-ring"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground"
-            >
-              <X size={14} />
-            </button>
-          )}
-        </div>
       </div>
 
       {isSearching ? (
@@ -313,15 +502,14 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
           )}
         </div>
       ) : (
-      <>
       <div className="flex-1 overflow-y-auto overscroll-contain min-h-0 flex flex-col">
       <div className="py-4 flex flex-col gap-5">
-        {/* Pinned — only shown when you actually have pinned notes; caps at
-            ~3 visible rows and scrolls beyond that so it can't take over
-            the sidebar. */}
+        {/* Pinned — capped at ~3 visible rows, scrolls beyond that */}
         {pinnedNotes.length > 0 && (
           <div className="px-3 space-y-1">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1.5">Pinned</div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1.5">
+              Pinned · {pinnedNotes.length}
+            </div>
             <div className={`space-y-0.5 ${pinnedNotes.length > 3 ? 'max-h-[102px] overflow-y-auto' : ''}`}>
               {pinnedNotes.map((note) => (
                 <button
@@ -331,178 +519,13 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
                     activeTabId === note.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'hover:bg-sidebar-accent/50'
                   }`}
                 >
-                  <Pin size={13} className="text-primary/70 shrink-0" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 shrink-0" />
                   <span className="truncate">{note.title || 'Untitled Note'}</span>
                 </button>
               ))}
             </div>
           </div>
         )}
-
-        {/* All Notes + Folders — one unified tree, All Notes is the root.
-            Expanded by default; collapses automatically once you open a
-            note (you're browsing less at that point), showing just that
-            note's folder instead. Always manually re-expandable. */}
-        <div className="px-3 space-y-1">
-          <div className="flex items-center justify-between px-1 mb-1">
-            <button
-              onClick={() => setAllNotesExpanded((v) => !v)}
-              title={allNotesExpanded ? 'Collapse' : 'Expand'}
-              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors p-1 rounded hover:bg-muted"
-            >
-              {allNotesExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            </button>
-            <Droppable droppableId="folder-all" isDropDisabled={false}>
-              {(provided, snapshot) => (
-                <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1">
-                  <button
-                    onClick={() => selectFolder('all')}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm font-semibold transition-colors border ${
-                      snapshot.isDraggingOver ? 'bg-primary/10 border-primary/40' :
-                      selectedFolderId === 'all' ? 'bg-sidebar-accent text-sidebar-accent-foreground border-transparent' :
-                      'hover:bg-sidebar-accent/50 border-transparent'
-                    }`}
-                  >
-                    <FileText size={16} className="text-muted-foreground" />
-                    All Notes
-                  </button>
-                  <div className="hidden">{provided.placeholder}</div>
-                </div>
-              )}
-            </Droppable>
-            <button onClick={() => handleCreateFolder()} title="New folder" className="shrink-0 text-muted-foreground hover:text-foreground transition-colors p-1 rounded hover:bg-muted">
-              <Plus size={14} />
-            </button>
-          </div>
-
-          {!allNotesExpanded && selectedFolderPath.length > 0 && (
-            <button
-              onClick={() => setAllNotesExpanded(true)}
-              className="w-full flex items-center gap-1 px-2 py-1 pl-8 text-xs text-muted-foreground hover:text-foreground transition-colors truncate"
-              title="Expand to pick a different folder"
-            >
-              <FolderIcon size={12} className="shrink-0" />
-              <span className="truncate">{selectedFolderPath.join(' / ')}</span>
-            </button>
-          )}
-
-          {allNotesExpanded && foldersLoading && (
-            <div className="space-y-1.5 px-1 py-1 pl-4 animate-pulse">
-              <div className="h-6 rounded bg-sidebar-accent/40 w-5/6" />
-              <div className="h-6 rounded bg-sidebar-accent/40 w-2/3" />
-            </div>
-          )}
-
-          {allNotesExpanded && (
-          <div className="pl-3 border-l border-border/40 ml-3.5 space-y-1">
-          {rootFolders.map(folder => {
-            const isExpanded = expandedFolders.has(folder.id);
-            const subfolders = folders.filter(f => f.parentFolderId === folder.id);
-
-            return (
-              <div key={folder.id}>
-                <ContextMenu>
-                  <ContextMenuTrigger asChild>
-                    <div className="flex items-center">
-                      {subfolders.length > 0 ? (
-                        <button onClick={(e) => { e.stopPropagation(); toggleFolder(folder.id); }}
-                          className="p-1 -mr-1 text-muted-foreground hover:text-foreground z-10">
-                          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                        </button>
-                      ) : <div className="w-5" />}
-
-                      {renamingFolderId === folder.id ? (
-                        <input
-                          autoFocus
-                          value={renameValue}
-                          onChange={e => setRenameValue(e.target.value)}
-                          onBlur={() => submitRename(folder.id)}
-                          onKeyDown={e => { if (e.key === 'Enter') submitRename(folder.id); if (e.key === 'Escape') setRenamingFolderId(null); }}
-                          className="flex-1 px-2 py-1 text-sm bg-background border border-primary rounded outline-none"
-                        />
-                      ) : (
-                        <Droppable droppableId={`folder-${folder.id}`} isDropDisabled={false}>
-                          {(provided, snapshot) => (
-                            <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1">
-                              <button
-                                onClick={() => selectFolder(folder.id)}
-                                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors border ${
-                                  snapshot.isDraggingOver ? 'bg-primary/10 border-primary/40' :
-                                  selectedFolderId === folder.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium border-transparent' :
-                                  'hover:bg-sidebar-accent/50 border-transparent'
-                                }`}
-                              >
-                                <FolderIcon size={16} className="text-muted-foreground fill-current opacity-20" />
-                                <span className="flex-1 text-left truncate">{folder.name}</span>
-                              </button>
-                              <div className="hidden">{provided.placeholder}</div>
-                            </div>
-                          )}
-                        </Droppable>
-                      )}
-                    </div>
-                  </ContextMenuTrigger>
-                  <ContextMenuContent className="w-48">
-                    <ContextMenuItem onClick={() => handleCreateFolder(folder.id)}>
-                      <FolderPlus size={14} className="mr-2" /> New Subfolder
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => onCreateNote(folder.id)}>
-                      <Plus size={14} className="mr-2" /> New Note Here
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem onClick={() => startRename(folder)}>
-                      Rename
-                    </ContextMenuItem>
-                    <ContextMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDeleteFolder(folder.id)}>
-                      <Trash2 size={14} className="mr-2" /> Delete Folder
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
-
-                {isExpanded && subfolders.length > 0 && (
-                  <div className="ml-6 mt-1 space-y-1 border-l border-border/50 pl-2">
-                    {subfolders.map(sub => (
-                      <ContextMenu key={sub.id}>
-                        <ContextMenuTrigger asChild>
-                          <Droppable droppableId={`folder-${sub.id}`} isDropDisabled={false}>
-                            {(provided, snapshot) => (
-                              <div ref={provided.innerRef} {...provided.droppableProps}>
-                                <button
-                                  onClick={() => selectFolder(sub.id)}
-                                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors border ${
-                                    snapshot.isDraggingOver ? 'bg-primary/10 border-primary/40' :
-                                    selectedFolderId === sub.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium border-transparent' :
-                                    'hover:bg-sidebar-accent/50 border-transparent'
-                                  }`}
-                                >
-                                  <FolderIcon size={14} className="text-muted-foreground fill-current opacity-20" />
-                                  <span className="flex-1 text-left truncate">{sub.name}</span>
-                                </button>
-                                <div className="hidden">{provided.placeholder}</div>
-                              </div>
-                            )}
-                          </Droppable>
-                        </ContextMenuTrigger>
-                        <ContextMenuContent className="w-48">
-                          <ContextMenuItem onClick={() => onCreateNote(sub.id)}>
-                            <Plus size={14} className="mr-2" /> New Note Here
-                          </ContextMenuItem>
-                          <ContextMenuSeparator />
-                          <ContextMenuItem onClick={() => startRename(sub)}>Rename</ContextMenuItem>
-                          <ContextMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDeleteFolder(sub.id)}>
-                            <Trash2 size={14} className="mr-2" /> Delete
-                          </ContextMenuItem>
-                        </ContextMenuContent>
-                      </ContextMenu>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          </div>
-          )}
-        </div>
 
         {/* Tags */}
         {tags.length > 0 && (
@@ -527,218 +550,101 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
             </div>
           </div>
         )}
-      </div>
 
-      {/* Note List */}
-      <div className="border-t border-border/50 flex flex-col bg-background/50">
-        <div className="sticky top-0 z-10 px-4 py-3 flex items-center justify-between border-b border-border/30 bg-sidebar/95 backdrop-blur-sm">
-          <div className="font-semibold text-sm">
-            {selectedTag ? `#${selectedTag}` :
-              selectedFolderId === 'all' ? 'All Notes' :
-              selectedFolderId === 'pinned' ? 'Pinned' :
-              selectedFolderId === 'trash' ? 'Trash' :
-              folders.find(f => f.id === selectedFolderId)?.name || 'Notes'}
-          </div>
-          <div className="flex items-center gap-1">
-            {selectedFolderId !== 'trash' && selectedFolderId !== 'pinned' && (
-              <button
-                onClick={() => setSortBy(prev => prev === 'manual' ? 'updatedAt' : 'manual')}
-                className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-black/5 transition-colors mr-1"
-              >
-                {sortBy === 'manual' ? 'Manual' : 'Recent'}
+        {/* Tag-filtered results, if a tag is selected */}
+        {selectedTag && (
+          <div className="px-3 space-y-1">
+            <div className="flex items-center justify-between px-1 mb-1">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">#{selectedTag} · {taggedNotes.length}</div>
+              <button onClick={() => setSelectedTag(null)} className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted">
+                <X size={12} />
               </button>
-            )}
-            {selectedFolderId !== 'trash' && (
-              <button
-                onClick={() => onCreateNote(typeof selectedFolderId === 'number' ? selectedFolderId : null)}
-                className="text-primary hover:text-primary-foreground hover:bg-primary p-1 rounded transition-colors"
-              >
-                <Plus size={16} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="p-2">
-          {displayNotes.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground italic font-serif">
-              {selectedFolderId === 'trash' ? 'Trash is empty.' : 'No notes here.'}
             </div>
-          ) : (
-            <Droppable droppableId="notes-list">
-                {(provided) => (
-                  <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-1">
-                    {displayNotes.map((note, index) => {
-                      const isDragDisabled = selectedFolderId === 'trash' || sortBy === 'updatedAt';
-                      const isUnlockedForDisplay = !note.isLocked || unlockedNoteIds.has(note.id);
-                      const previewText = !isUnlockedForDisplay
-                        ? 'This note is password-protected.'
-                        : note.content
-                        ? htmlToPlainText(note.content) || 'No content yet.'
-                        : 'No content yet.';
-                      return (
-                        <Draggable key={note.id} draggableId={note.id.toString()} index={index} isDragDisabled={isDragDisabled}>
-                          {(provided, snapshot) => (
-                            <ContextMenu>
-                              <ContextMenuTrigger asChild>
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...(!isDragDisabled ? provided.dragHandleProps : {})}
-                                  onClick={() => onOpenNote(note)}
-                                  onMouseEnter={(e) => {
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    setHoverPreview({ noteId: note.id, top: rect.top, left: rect.right + 8 });
-                                  }}
-                                  onMouseLeave={() => setHoverPreview((cur) => (cur?.noteId === note.id ? null : cur))}
-                                  className={`relative group flex flex-col p-3 rounded-md cursor-pointer transition-colors border ${
-                                    activeTabId === note.id
-                                      ? 'bg-card border-primary/20 shadow-sm'
-                                      : snapshot.isDragging
-                                      ? 'bg-card shadow-lg border-primary/50'
-                                      : 'bg-transparent border-transparent hover:bg-sidebar-accent/60 hover:border-border/60'
-                                  }`}
-                                  style={note.color ? { borderLeftColor: note.color, borderLeftWidth: '3px' } : {}}
-                                >
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="font-medium text-sm truncate flex-1 leading-tight text-foreground flex items-center gap-1.5 -ml-1">
-                                      {!isDragDisabled && (
-                                        <div className="opacity-0 group-hover:opacity-100 text-muted-foreground/50 transition-opacity pointer-events-none">
-                                          <GripVertical size={14} />
-                                        </div>
-                                      )}
-                                      <ColorDot color={note.color} />
-                                      <span className={!isDragDisabled ? '' : 'ml-1'}>{note.title || 'Untitled Note'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1 shrink-0">
-                                      {note.isLocked && <span className="text-muted-foreground/60 text-xs">🔒</span>}
-                                      {note.isPinned && <Pin size={12} className="text-primary opacity-70" />}
-                                    </div>
-                                  </div>
-                                  <div className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed opacity-70 pl-5">
-                                    {!isUnlockedForDisplay
-                                      ? '🔒 Locked'
-                                      : note.content ? htmlToPlainText(note.content).substring(0, 80) : 'No content...'}
-                                  </div>
+            {taggedNotes.length === 0 ? (
+              <p className="px-2 py-2 text-xs text-muted-foreground italic">No notes with this tag.</p>
+            ) : (
+              taggedNotes.map((note, i) => renderNoteRow(note, i, 0, true))
+            )}
+          </div>
+        )}
 
-                                </div>
-                              </ContextMenuTrigger>
-
-                              {!snapshot.isDragging && hoverPreview?.noteId === note.id && createPortal(
-                                <div
-                                  className="fixed z-50 w-64 max-h-64 overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md px-3 py-2 pointer-events-none"
-                                  style={{ top: hoverPreview.top, left: hoverPreview.left }}
-                                >
-                                  <p className="font-semibold font-serif mb-1 text-sm">{note.title || 'Untitled Note'}</p>
-                                  <p className="text-xs leading-relaxed whitespace-pre-wrap">{previewText}</p>
-                                </div>,
-                                document.body
-                              )}
-
-                              <ContextMenuContent className="w-52">
-                                {note.isDeleted ? (
-                                  <>
-                                    <ContextMenuItem onClick={() => restoreNote.mutate({ id: note.id }, { onSuccess: invalidateNotes })}>
-                                      <RotateCcw size={14} className="mr-2" /> Restore Note
-                                    </ContextMenuItem>
-                                    <ContextMenuSeparator />
-                                    <ContextMenuItem
-                                      className="text-destructive focus:text-destructive"
-                                      onClick={() => {
-                                        if (confirm('Permanently delete this note?')) {
-                                          purgeNote.mutate({ id: note.id }, { onSuccess: invalidateNotes });
-                                        }
-                                      }}
-                                    >
-                                      <Flame size={14} className="mr-2" /> Delete Forever
-                                    </ContextMenuItem>
-                                  </>
-                                ) : (
-                                  <>
-                                    <ContextMenuItem onClick={() => {
-                                      note.isPinned
-                                        ? unpinNote.mutate({ id: note.id }, { onSuccess: invalidateNotes })
-                                        : pinNote.mutate({ id: note.id }, { onSuccess: invalidateNotes });
-                                    }}>
-                                      {note.isPinned ? <><PinOff size={14} className="mr-2" /> Unpin</> : <><Pin size={14} className="mr-2" /> Pin Note</>}
-                                    </ContextMenuItem>
-
-                                    {/* Color submenu */}
-                                    <ContextMenuSub>
-                                      <ContextMenuSubTrigger>
-                                        <ColorDot color={note.color} />
-                                        <span className="ml-2">Set Color</span>
-                                      </ContextMenuSubTrigger>
-                                      <ContextMenuSubContent className="p-2 w-auto">
-                                        <div className="flex gap-1.5 flex-wrap max-w-[160px]">
-                                          {NOTE_COLORS.map(c => (
-                                            <button
-                                              key={c.value ?? 'none'}
-                                              title={c.label}
-                                              onClick={() => handleSetColor(note.id, c.value)}
-                                              className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 ${note.color === c.value ? 'border-foreground/60 scale-110' : 'border-transparent'}`}
-                                              style={{ backgroundColor: c.dot }}
-                                            />
-                                          ))}
-                                        </div>
-                                      </ContextMenuSubContent>
-                                    </ContextMenuSub>
-
-                                    <ContextMenuSub>
-                                      <ContextMenuSubTrigger>
-                                        <ArrowRight size={14} className="mr-2" /> Move to...
-                                      </ContextMenuSubTrigger>
-                                      <ContextMenuSubContent className="w-48">
-                                        <ContextMenuItem onClick={() => moveNote.mutate({ id: note.id, data: { folderId: null } }, { onSuccess: invalidateNotes })}>
-                                          All Notes
-                                        </ContextMenuItem>
-                                        <ContextMenuSeparator />
-                                        {folders.map(f => (
-                                          <ContextMenuItem key={f.id} onClick={() => moveNote.mutate({ id: note.id, data: { folderId: f.id } }, { onSuccess: invalidateNotes })}>
-                                            {f.parentFolderId ? '  └ ' : ''}{f.name}
-                                          </ContextMenuItem>
-                                        ))}
-                                      </ContextMenuSubContent>
-                                    </ContextMenuSub>
-
-                                    <ContextMenuSeparator />
-                                    <ContextMenuItem
-                                      className="text-destructive focus:text-destructive"
-                                      onClick={() => deleteNote.mutate({ id: note.id }, { onSuccess: invalidateNotes })}
-                                    >
-                                      <Trash2 size={14} className="mr-2" /> Move to Trash
-                                    </ContextMenuItem>
-                                  </>
-                                )}
-                              </ContextMenuContent>
-                            </ContextMenu>
-                          )}
-                        </Draggable>
-                      );
-                    })}
-                    {provided.placeholder}
+        {/* All Notes + Folders — one unified tree: folders and their notes
+            nested together, always visible (no separate collapsed view). */}
+        {!selectedTag && (
+          <div className="px-3 space-y-1">
+            <div className="flex items-center justify-between px-1 mb-1">
+              <Droppable droppableId="folder-all" isDropDisabled={false}>
+                {(provided, snapshot) => (
+                  <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1">
+                    <div className={`w-full flex items-center gap-2 px-2 py-1 rounded-md text-xs font-semibold uppercase tracking-wider transition-colors ${
+                      snapshot.isDraggingOver ? 'bg-primary/10' : ''
+                    }`}>
+                      <span className="text-muted-foreground">All Notes · {activeAllNotes.length}</span>
+                    </div>
+                    <div className="hidden">{provided.placeholder}</div>
                   </div>
                 )}
               </Droppable>
-          )}
-        </div>
+              <button onClick={() => handleCreateFolder()} title="New folder" className="shrink-0 text-muted-foreground hover:text-foreground transition-colors p-1 rounded hover:bg-muted">
+                <Plus size={14} />
+              </button>
+            </div>
+
+            {foldersLoading && (
+              <div className="space-y-1.5 px-1 py-1 pl-4 animate-pulse">
+                <div className="h-6 rounded bg-sidebar-accent/40 w-5/6" />
+                <div className="h-6 rounded bg-sidebar-accent/40 w-2/3" />
+              </div>
+            )}
+
+            <div className="space-y-0.5">
+              {rootFolders.map((folder) => renderFolderNode(folder, 0))}
+
+              {rootNotes.length > 0 && (
+                <Droppable droppableId="notes-in-root">
+                  {(provided) => (
+                    <div ref={provided.innerRef} {...provided.droppableProps}>
+                      {rootNotes.map((note, i) => renderNoteRow(note, i, 0, false))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              )}
+
+              {activeAllNotes.length === 0 && !foldersLoading && (
+                <p className="px-2 py-2 text-xs text-muted-foreground italic">No notes yet — click + above to add a folder, or create a note.</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
       </div>
-      </>
       )}
 
-      {/* Trash — a fixed footer, always visible, never part of the scroll,
-          so it doesn't take space away from the note list above it. */}
-      <div className="shrink-0 px-3 py-2 border-t border-border/40 bg-sidebar">
-        <button
-          onClick={() => selectFolder('trash')}
-          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${
-            selectedFolderId === 'trash' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground'
-          }`}
-        >
-          <Trash2 size={14} />
-          Trash
-        </button>
+      {/* Trash — a fixed footer, always visible, never part of the main
+          scroll. Click to expand a small scrollable list of trashed notes
+          right above it, without taking space from the tree above. */}
+      <div className="shrink-0 border-t border-border/40 bg-sidebar">
+        {trashExpanded && (
+          <div className="max-h-40 overflow-y-auto overscroll-contain px-2 pt-2 space-y-0.5">
+            {trashedNotes.length === 0 ? (
+              <p className="px-2 py-2 text-xs text-muted-foreground italic">Trash is empty.</p>
+            ) : (
+              trashedNotes.map((note, i) => renderNoteRow(note, i, 0, true))
+            )}
+          </div>
+        )}
+        <div className="px-3 py-2">
+          <button
+            onClick={() => setTrashExpanded((v) => !v)}
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
+          >
+            <Trash2 size={14} />
+            Trash
+            {trashedNotes.length > 0 && <span className="text-xs opacity-60">{trashedNotes.length}</span>}
+            {trashExpanded ? <ChevronDown size={13} className="ml-auto" /> : <ChevronRight size={13} className="ml-auto" />}
+          </button>
+        </div>
       </div>
     </DragDropContext>
     </div>
