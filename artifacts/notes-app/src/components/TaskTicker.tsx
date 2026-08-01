@@ -1,57 +1,101 @@
 import React, { useState, useMemo } from 'react';
 import { Play, Pause, CalendarClock } from 'lucide-react';
 import { useListPlannerEntries } from '@workspace/api-client-react';
-import { format, addDays } from 'date-fns';
+import { format, addDays, parseISO, isToday, isTomorrow } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
 interface TaskTickerProps {
   onOpenPlanner: () => void;
 }
 
-type Day = 'today' | 'tomorrow';
+function todayKey(): string {
+  return format(new Date(), 'yyyy-MM-dd');
+}
+function tomorrowKey(): string {
+  return format(addDays(new Date(), 1), 'yyyy-MM-dd');
+}
 
 export default function TaskTicker({ onOpenPlanner }: TaskTickerProps) {
   const { data: entries = [] } = useListPlannerEntries();
   const [paused, setPaused] = useState(false);
-  const [selectedDay, setSelectedDay] = useState<Day>('today');
+  // The date currently shown in the ticker — defaults to today, but can be
+  // changed to Tomorrow or any date at all via the calendar picker.
+  const [selectedDateKey, setSelectedDateKey] = useState<string>(todayKey());
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
-  const { todayItems, tomorrowItems } = useMemo(() => {
-    const todayKey = format(new Date(), 'yyyy-MM-dd');
-    const tomorrowKey = format(addDays(new Date(), 1), 'yyyy-MM-dd');
+  const { hasTodayOrTomorrow, items, selectedDateLabel } = useMemo(() => {
+    const tKey = todayKey();
+    const tmKey = tomorrowKey();
+    const todayItems = entries.filter((e) => e.date === tKey && !e.isDone);
+    const tomorrowItems = entries.filter((e) => e.date === tmKey && !e.isDone);
+    const selectedItems = entries.filter((e) => e.date === selectedDateKey && !e.isDone);
+
+    const parsed = parseISO(selectedDateKey);
+    const label = isToday(parsed) ? 'today' : isTomorrow(parsed) ? 'tomorrow' : format(parsed, 'EEEE, MMM d');
+
     return {
-      todayItems: entries.filter((e) => e.date === todayKey && !e.isDone),
-      tomorrowItems: entries.filter((e) => e.date === tomorrowKey && !e.isDone),
+      hasTodayOrTomorrow: todayItems.length > 0 || tomorrowItems.length > 0,
+      items: selectedItems,
+      selectedDateLabel: label,
     };
-  }, [entries]);
+  }, [entries, selectedDateKey]);
 
-  // Nothing to show for either day — no point taking up a row at all.
-  if (todayItems.length === 0 && tomorrowItems.length === 0) return null;
+  // Nothing to show for today or tomorrow — no point taking up a row at all.
+  // (Once shown, you can still browse to any other date via the calendar.)
+  if (!hasTodayOrTomorrow) return null;
 
-  const items = selectedDay === 'today' ? todayItems : tomorrowItems;
+  const isShowingToday = selectedDateKey === todayKey();
+  const isShowingTomorrow = selectedDateKey === tomorrowKey();
 
   return (
     <div className="h-9 shrink-0 bg-blue-50 border-b border-blue-200 flex items-center overflow-hidden pr-11 font-sans">
       <span className="shrink-0 pl-2 pr-1 text-base select-none" title="Today's tasks">👉</span>
+
       <button
         onClick={onOpenPlanner}
         title="Open Planner"
-        className="shrink-0 h-full flex items-center px-2.5 hover:bg-blue-100/70 transition-colors text-blue-600"
+        className="shrink-0 h-full flex items-center px-2 hover:bg-blue-100/70 transition-colors text-blue-600"
       >
         <CalendarClock size={13} />
       </button>
 
+      {/* Calendar picker — browse any date's tasks in the ticker, not just Today/Tomorrow */}
+      <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+        <PopoverTrigger asChild>
+          <button
+            title="Pick a date"
+            className="shrink-0 h-full flex items-center px-2 border-l border-blue-200 hover:bg-blue-100/70 transition-colors text-blue-600"
+          >
+            📅
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={parseISO(selectedDateKey)}
+            onSelect={(d) => {
+              if (d) setSelectedDateKey(format(d, 'yyyy-MM-dd'));
+              setCalendarOpen(false);
+            }}
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+
       <div className="shrink-0 h-full flex items-stretch text-xs font-semibold">
         <button
-          onClick={() => setSelectedDay('today')}
-          className={`px-3 transition-colors whitespace-nowrap ${
-            selectedDay === 'today' ? 'bg-blue-100 text-blue-700' : 'text-blue-600 hover:bg-blue-100/70'
+          onClick={() => setSelectedDateKey(todayKey())}
+          className={`px-3 transition-colors whitespace-nowrap border-l border-blue-200 ${
+            isShowingToday ? 'bg-blue-100 text-blue-700' : 'text-blue-600 hover:bg-blue-100/70'
           }`}
         >
           Today
         </button>
         <button
-          onClick={() => setSelectedDay('tomorrow')}
+          onClick={() => setSelectedDateKey(tomorrowKey())}
           className={`px-3 transition-colors whitespace-nowrap border-l border-blue-200 ${
-            selectedDay === 'tomorrow' ? 'bg-blue-100 text-blue-700' : 'text-blue-600 hover:bg-blue-100/70'
+            isShowingTomorrow ? 'bg-blue-100 text-blue-700' : 'text-blue-600 hover:bg-blue-100/70'
           }`}
         >
           Tomorrow
@@ -61,7 +105,7 @@ export default function TaskTicker({ onOpenPlanner }: TaskTickerProps) {
       <div className="flex-1 relative overflow-hidden h-full">
         {items.length === 0 ? (
           <div className="absolute inset-0 flex items-center px-3 text-sm text-muted-foreground italic">
-            Nothing scheduled for {selectedDay}.
+            Nothing scheduled for {selectedDateLabel}.
           </div>
         ) : (
           <div
