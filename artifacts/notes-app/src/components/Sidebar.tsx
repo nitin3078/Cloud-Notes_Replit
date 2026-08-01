@@ -56,6 +56,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
   const [trashExpanded, setTrashExpanded] = useState(false);
+  const [rootNotesExpanded, setRootNotesExpanded] = useState(true);
   const [renamingFolderId, setRenamingFolderId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
   // Hover preview is rendered via a portal at fixed screen coordinates
@@ -703,14 +704,26 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
               {rootFolders.map((folder) => renderFolderNode(folder, 0))}
 
               {rootNotes.length > 0 && (
-                <Droppable droppableId="notes-in-root">
-                  {(provided) => (
-                    <div ref={provided.innerRef} {...provided.droppableProps}>
-                      {rootNotes.map((note, i) => renderNoteRow(note, i, 0, false))}
-                      {provided.placeholder}
-                    </div>
+                <div>
+                  <button
+                    onClick={() => setRootNotesExpanded((v) => !v)}
+                    className="w-full flex items-center gap-2 px-2 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/40 transition-colors"
+                  >
+                    {rootNotesExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    <span className="flex-1 text-left">Notes</span>
+                    <span>{rootNotes.length}</span>
+                  </button>
+                  {rootNotesExpanded && (
+                    <Droppable droppableId="notes-in-root">
+                      {(provided) => (
+                        <div ref={provided.innerRef} {...provided.droppableProps}>
+                          {rootNotes.map((note, i) => renderNoteRow(note, i, 0, false))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
                   )}
-                </Droppable>
+                </div>
               )}
 
               {activeAllNotes.length === 0 && !foldersLoading && (
