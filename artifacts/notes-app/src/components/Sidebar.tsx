@@ -327,6 +327,108 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
     );
   }
 
+  // A plain (non-draggable) note row — used for the Tags-filtered view and
+  // Trash, where dragging doesn't make sense (notes there can come from many
+  // different folders, or are already deleted). Deliberately does NOT use
+  // Draggable/Droppable at all, sidestepping any drag-library edge cases
+  // entirely for these two views.
+  function renderPlainNoteRow(note: Note, depth: number) {
+    const isUnlockedForDisplay = !note.isLocked || unlockedNoteIds.has(note.id);
+    const previewText = !isUnlockedForDisplay
+      ? 'This note is password-protected.'
+      : note.content ? htmlToPlainText(note.content) || 'No content yet.' : 'No content yet.';
+    const previewLine = !isUnlockedForDisplay
+      ? '🔒 Locked'
+      : note.content ? htmlToPlainText(note.content).substring(0, 60) : '';
+
+    return (
+      <ContextMenu key={note.id}>
+        <ContextMenuTrigger asChild>
+          <div
+            onClick={() => onOpenNote(note)}
+            onMouseEnter={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setHoverPreview({ noteId: note.id, top: rect.top, left: rect.right + 8 });
+            }}
+            onMouseLeave={() => setHoverPreview((cur) => (cur?.noteId === note.id ? null : cur))}
+            style={{ paddingLeft: `${depth * 18 + 8}px`, ...(note.color ? { borderLeftColor: note.color, borderLeftWidth: '3px' } : {}) }}
+            className={`relative flex flex-col pr-2 py-1.5 rounded-md cursor-pointer transition-colors border ${
+              activeTabId === note.id ? 'bg-primary/10 border-l-2 border-primary' : 'bg-transparent border-transparent hover:bg-sidebar-accent/60'
+            }`}
+          >
+            <div className="flex items-center gap-1.5">
+              <ColorDot color={note.color} />
+              <span className={`text-sm truncate flex-1 ${activeTabId === note.id ? 'font-semibold text-foreground' : 'text-foreground/90'}`}>
+                {note.title || 'Untitled Note'}
+              </span>
+              {note.isLocked && <Lock size={11} className="text-muted-foreground/60 shrink-0" />}
+              {note.isPinned && <Pin size={11} className="text-primary opacity-70 shrink-0" />}
+            </div>
+            {previewLine && <div className="text-xs text-muted-foreground truncate opacity-70 mt-0.5">{previewLine}</div>}
+          </div>
+        </ContextMenuTrigger>
+
+        {hoverPreview?.noteId === note.id && createPortal(
+          <div
+            className="fixed z-50 w-64 max-h-64 overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md px-3 py-2 pointer-events-none"
+            style={{ top: hoverPreview.top, left: hoverPreview.left }}
+          >
+            <p className="font-semibold font-serif mb-1 text-sm">{note.title || 'Untitled Note'}</p>
+            <p className="text-xs leading-relaxed whitespace-pre-wrap">{previewText}</p>
+          </div>,
+          document.body
+        )}
+
+        <ContextMenuContent className="w-52">
+          {note.isDeleted ? (
+            <>
+              <ContextMenuItem onClick={() => restoreNote.mutate({ id: note.id }, { onSuccess: invalidateNotes })}>
+                <RotateCcw size={14} className="mr-2" /> Restore Note
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => { if (confirm('Permanently delete this note?')) purgeNote.mutate({ id: note.id }, { onSuccess: invalidateNotes }); }}
+              >
+                <Flame size={14} className="mr-2" /> Delete Forever
+              </ContextMenuItem>
+            </>
+          ) : (
+            <>
+              <ContextMenuItem onClick={() => {
+                note.isPinned
+                  ? unpinNote.mutate({ id: note.id }, { onSuccess: invalidateNotes })
+                  : pinNote.mutate({ id: note.id }, { onSuccess: invalidateNotes });
+              }}>
+                {note.isPinned ? <><PinOff size={14} className="mr-2" /> Unpin</> : <><Pin size={14} className="mr-2" /> Pin Note</>}
+              </ContextMenuItem>
+              <ContextMenuSub>
+                <ContextMenuSubTrigger>
+                  <ArrowRight size={14} className="mr-2" /> Move to...
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent className="w-48">
+                  <ContextMenuItem onClick={() => moveNote.mutate({ id: note.id, data: { folderId: null } }, { onSuccess: invalidateNotes })}>
+                    All Notes
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  {folders.map((f) => (
+                    <ContextMenuItem key={f.id} onClick={() => moveNote.mutate({ id: note.id, data: { folderId: f.id } }, { onSuccess: invalidateNotes })}>
+                      {f.parentFolderId ? '  └ ' : ''}{f.name}
+                    </ContextMenuItem>
+                  ))}
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+              <ContextMenuSeparator />
+              <ContextMenuItem className="text-destructive focus:text-destructive" onClick={() => deleteNote.mutate({ id: note.id }, { onSuccess: invalidateNotes })}>
+                <Trash2 size={14} className="mr-2" /> Move to Trash
+              </ContextMenuItem>
+            </>
+          )}
+        </ContextMenuContent>
+      </ContextMenu>
+    );
+  }
+
   // A folder node — renders its own row, then (if expanded) its subfolders
   // recursively followed by its own direct notes, all indented by depth.
   function renderFolderNode(folder: Folder, depth: number): React.ReactNode {
@@ -563,14 +665,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
             {taggedNotes.length === 0 ? (
               <p className="px-2 py-2 text-xs text-muted-foreground italic">No notes with this tag.</p>
             ) : (
-              <Droppable droppableId="notes-tagged">
-                {(provided) => (
-                  <div ref={provided.innerRef} {...provided.droppableProps}>
-                    {taggedNotes.map((note, i) => renderNoteRow(note, i, 0, true))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
+              taggedNotes.map((note) => renderPlainNoteRow(note, 0))
             )}
           </div>
         )}
@@ -637,14 +732,7 @@ export default function Sidebar({ selectedFolderId, onSelectFolder, onOpenNote, 
             {trashedNotes.length === 0 ? (
               <p className="px-2 py-2 text-xs text-muted-foreground italic">Trash is empty.</p>
             ) : (
-              <Droppable droppableId="notes-trash">
-                {(provided) => (
-                  <div ref={provided.innerRef} {...provided.droppableProps}>
-                    {trashedNotes.map((note, i) => renderNoteRow(note, i, 0, true))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
+              trashedNotes.map((note) => renderPlainNoteRow(note, 0))
             )}
           </div>
         )}
