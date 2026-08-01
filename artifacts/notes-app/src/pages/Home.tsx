@@ -31,10 +31,14 @@ function HomeContent() {
   const handleOpenNote = (note: Note) => {
     // If the note is locked and not yet unlocked in this session, open it anyway
     // (Editor will show the lock screen and handle unlock)
+    setPlannerOpen(false);
+    setHelpOpen(false);
     openTab(note.id);
   };
 
   const handleCreateNote = (defaultFolderId?: number | null) => {
+    setPlannerOpen(false);
+    setHelpOpen(false);
     setCreateModalDefaultFolderId(defaultFolderId ?? null);
     setCreateModalOpen(true);
   };
