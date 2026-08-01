@@ -192,17 +192,12 @@ router.post('/auth/register', async (req: Request, res: Response) => {
 router.post('/auth/login-password', async (req: Request, res: Response) => {
   const parsed = parseLoginPasswordBody(req.body);
   if ('error' in parsed) {
-    req.log?.warn({ error: parsed.error, bodyKeys: req.body ? Object.keys(req.body) : null }, '[TEMP DIAGNOSTIC] login-password: body parse failed');
     res.status(400).json({ error: parsed.error });
     return;
   }
   const { email, password } = parsed.data;
-  // TEMP DIAGNOSTIC: safe to log — never logs the password or hash itself.
-  req.log?.info({ email, passwordLength: password.length }, '[TEMP DIAGNOSTIC] login-password: attempt');
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
-  req.log?.info({ email, userFound: !!user, hasPasswordHash: !!user?.passwordHash }, '[TEMP DIAGNOSTIC] login-password: user lookup result');
-
   // Same generic error whether the email doesn't exist or the account has no
   // local password (e.g. it's Replit-only) or the password is wrong — avoids
   // leaking which emails are registered.
@@ -211,7 +206,6 @@ router.post('/auth/login-password', async (req: Request, res: Response) => {
     return;
   }
   const valid = await bcrypt.compare(password, user.passwordHash);
-  req.log?.info({ email, passwordValid: valid }, '[TEMP DIAGNOSTIC] login-password: bcrypt compare result');
   if (!valid) {
     res.status(401).json({ error: 'Invalid email or password' });
     return;
